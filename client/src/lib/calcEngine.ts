@@ -1006,3 +1006,528 @@ export const CARE_REGION_OPTIONS: { value: CareRegionRate; label: string }[] = [
   { value: "10.27", label: "7級地 10.27円" },
   { value: "10.00", label: "その他 10.00円" },
 ];
+
+// ============================================================
+// 精神科訪問看護 型定義
+// ============================================================
+
+/** 精神科訪問看護基本療養費の区分 */
+export type PsychBasicFeeType =
+  | "type1"    // 基本療養費Ⅰ（通常・同一建物1人）
+  | "type2"    // 基本療養費Ⅱ（同一建物2人）
+  | "type3"    // 基本療養費Ⅲ（同一建物3人以上）
+  | "type4";   // 基本療養費Ⅳ（外泊中）
+
+/** 精神科訪問看護の訪問時間区分 */
+export type PsychVisitDuration = "under30" | "over30";
+
+/** 精神科複数回訪問加算の回数 */
+export type PsychMultipleVisitCount = "twice" | "three_plus";
+
+/** 精神科訪問看護 計算入力 */
+export interface PsychCalcInput {
+  basicFeeType: PsychBasicFeeType;
+  visitDuration: PsychVisitDuration;
+  weeklyVisitDay: WeeklyVisitDay;
+  isFirstVisitOfMonth: boolean;
+  managementFeeType: ManagementFeeType;
+  singleBuildingResidentCount: SingleBuildingResidentCount;
+  monthlyVisitDays: MonthlyVisitDays;
+  // 加算
+  emergencyVisit: boolean;        // 精神科緊急訪問看護加算 2,650円
+  longTimeVisit: boolean;         // 長時間精神科訪問看護加算 5,200円
+  timeZone: TimeZone;
+  multipleStaff: boolean;         // 複数名精神科訪問看護加算
+  multipleStaffType: "nurse" | "helper"; // 看護師等/看護補助者
+  multipleVisit: boolean;         // 精神科複数回訪問加算
+  multipleVisitCount: PsychMultipleVisitCount;
+  h24Support: boolean;            // 24時間対応体制加算
+  h24SupportType: "ika" | "ro";
+  specialManagement: boolean;
+  specialManagementType: SpecialManagementType;
+  terminalCare: boolean;
+  terminalCareType: TerminalCareType;
+}
+
+/** 自立支援医療の月額上限管理入力 */
+export interface SeishinCopayTracker {
+  monthlyLimit: number;      // 月額上限額（円）
+  alreadyPaid: number;       // 今月すでに支払った累計額（円）
+}
+
+// ============================================================
+// 介護予防訪問看護 型定義
+// ============================================================
+
+/** 介護予防訪問看護費の訪問時間区分 */
+export type PreventiveCareVisitDuration =
+  | "20min"      // 20分未満
+  | "30min"      // 30分未満
+  | "60min"      // 30分以上1時間未満
+  | "90min"      // 1時間以上1時間30分未満
+  | "pt_ot_st";  // 理学療法士等
+
+/** 介護予防訪問看護 計算入力 */
+export interface PreventiveCareCalcInput {
+  providerType: CareProviderType;
+  visitDuration: PreventiveCareVisitDuration;
+  regionRate: CareRegionRate;
+  // 加算
+  emergencyVisit: boolean;           // 緊急時訪問看護加算（Ⅰ）600単位/月
+  specialManagement: boolean;        // 特別管理加算
+  specialManagementType: "type1" | "type2"; // 500/250単位
+  terminalCare: boolean;             // ターミナルケア加算 2500単位
+  multipleVisit: boolean;            // 複数名訪問看護加算（Ⅰ）
+  multipleVisitType: "nurse" | "other";
+  earlyLate: boolean;                // 夜間・早朝加算
+  midnight: boolean;                 // 深夜加算
+  initialAdd: boolean;               // 初回加算
+  initialAddType: "type1" | "type2"; // 350/300単位
+}
+
+// ============================================================
+// 精神科訪問看護 点数テーブル（令和6年度改定後）
+// ============================================================
+
+/** 精神科基本療養費Ⅰ・Ⅱ（通常・同一建物2人） */
+const PSYCH_BASIC_FEE_I_II: Record<WeeklyVisitDay, Record<PsychVisitDuration, number>> = {
+  "1-3": { under30: 4250, over30: 5550 },
+  "4+":  { under30: 5100, over30: 6550 },
+};
+
+/** 精神科基本療養費Ⅲ（同一建物3人以上） */
+const PSYCH_BASIC_FEE_III: Record<WeeklyVisitDay, Record<PsychVisitDuration, number>> = {
+  "1-3": { under30: 2130, over30: 2780 },
+  "4+":  { under30: 2550, over30: 3280 },
+};
+
+/** 精神科基本療養費Ⅳ（外泊中） */
+const PSYCH_BASIC_FEE_IV = 8500;
+
+/** 精神科訪問看護 加算 */
+const PSYCH_ADDITIONS = {
+  emergencyVisit:      2650,  // 精神科緊急訪問看護加算
+  longTimeVisit:       5200,  // 長時間精神科訪問看護加算
+  earlyLate:           2100,  // 夜間・早朝訪問看護加算
+  midnight:            4200,  // 深夜訪問看護加算
+  multipleStaffNurse:  4500,  // 複数名精神科訪問看護加算（看護師等）
+  multipleStaffHelper: 3000,  // 複数名精神科訪問看護加算（看護補助者）
+  multipleVisitTwice:  4500,  // 精神科複数回訪問加算（2回）
+  multipleVisitThree:  8000,  // 精神科複数回訪問加算（3回以上）
+};
+
+// ============================================================
+// 介護予防訪問看護 点数テーブル（令和6年度改定後）
+// ============================================================
+
+/** 介護予防訪問看護費 基本単位数（訪問看護ステーション） */
+const PREVENTIVE_CARE_BASIC_STATION: Record<PreventiveCareVisitDuration, number> = {
+  "20min":    303,
+  "30min":    451,
+  "60min":    794,
+  "90min":   1087,
+  "pt_ot_st": 294,
+};
+
+/** 介護予防訪問看護費 基本単位数（病院・診療所） */
+const PREVENTIVE_CARE_BASIC_HOSPITAL: Record<PreventiveCareVisitDuration, number> = {
+  "20min":    266,
+  "30min":    399,
+  "60min":    574,
+  "90min":    844,
+  "pt_ot_st": 266,
+};
+
+/** 介護予防訪問看護 加算単位数 */
+const PREVENTIVE_CARE_ADDITIONS = {
+  emergencyVisitI:    600,   // 緊急時訪問看護加算（Ⅰ）/月
+  specialMgmt1:       500,   // 特別管理加算（1）/月
+  specialMgmt2:       250,   // 特別管理加算（2）/月
+  terminalCare:      2500,   // ターミナルケア加算/月
+  initialAddI:        350,   // 初回加算（Ⅰ）/月（新設）
+  initialAddII:       300,   // 初回加算（Ⅱ）/月
+  multipleVisitNurse: 254,   // 複数名訪問看護加算（Ⅰ）看護師等/回
+  multipleVisitOther: 201,   // 複数名訪問看護加算（Ⅱ）その他/回
+};
+
+// ============================================================
+// 自立支援医療 月額上限管理
+// ============================================================
+
+/**
+ * 自立支援医療（精神通院）の今回の実際の支払額を計算する。
+ * 月の累計支払済み額と月額上限から、今回の訪問で実際に支払う額を返す。
+ *
+ * @param baseAmount    今回の訪問の本来の自己負担額（1割計算後）
+ * @param tracker       月額上限と累計支払済み額
+ * @returns             実際の支払額と注記
+ */
+export function calcSeishinCopayWithTracker(
+  baseAmount: number,
+  tracker: SeishinCopayTracker
+): { actualPayment: number; note: string; remainingBudget: number } {
+  const { monthlyLimit, alreadyPaid } = tracker;
+
+  if (monthlyLimit <= 0) {
+    // 上限なし（重度かつ継続に該当しない場合等）
+    return {
+      actualPayment: baseAmount,
+      note: "自立支援医療（精神通院）1割負担（月額上限なし）",
+      remainingBudget: -1,
+    };
+  }
+
+  const remainingBudget = Math.max(0, monthlyLimit - alreadyPaid);
+
+  if (remainingBudget <= 0) {
+    // すでに上限に達している
+    return {
+      actualPayment: 0,
+      note: `自立支援医療 月額上限${monthlyLimit.toLocaleString()}円に達しているため自己負担なし`,
+      remainingBudget: 0,
+    };
+  }
+
+  const actualPayment = Math.min(baseAmount, remainingBudget);
+  const newTotal = alreadyPaid + actualPayment;
+  const isAtLimit = newTotal >= monthlyLimit;
+
+  return {
+    actualPayment,
+    note: isAtLimit
+      ? `自立支援医療 1割負担・今回で月額上限${monthlyLimit.toLocaleString()}円に到達`
+      : `自立支援医療 1割負担・今回支払後累計${newTotal.toLocaleString()}円（上限${monthlyLimit.toLocaleString()}円まで残${(monthlyLimit - newTotal).toLocaleString()}円）`,
+    remainingBudget: Math.max(0, monthlyLimit - newTotal),
+  };
+}
+
+// ============================================================
+// 精神科訪問看護 メイン計算関数
+// ============================================================
+
+export function calculatePsychiatric(input: PsychCalcInput): CalcResult {
+  const items: CalcLineItem[] = [];
+  const warnings: string[] = [];
+
+  // 基本療養費
+  let basicFee = 0;
+  let basicFeeLabel = "";
+
+  if (input.basicFeeType === "type4") {
+    basicFee = PSYCH_BASIC_FEE_IV;
+    basicFeeLabel = "精神科訪問看護基本療養費Ⅳ（外泊中）";
+  } else if (input.basicFeeType === "type3") {
+    basicFee = PSYCH_BASIC_FEE_III[input.weeklyVisitDay][input.visitDuration];
+    const dayLabel = input.weeklyVisitDay === "4+" ? "週4日目以降" : "週3日目まで";
+    const timeLabel = input.visitDuration === "over30" ? "30分以上" : "30分未満";
+    basicFeeLabel = `精神科訪問看護基本療養費Ⅲ（同一建物3人以上・${dayLabel}・${timeLabel}）`;
+  } else {
+    basicFee = PSYCH_BASIC_FEE_I_II[input.weeklyVisitDay][input.visitDuration];
+    const dayLabel = input.weeklyVisitDay === "4+" ? "週4日目以降" : "週3日目まで";
+    const timeLabel = input.visitDuration === "over30" ? "30分以上" : "30分未満";
+    const typeLabel = input.basicFeeType === "type2" ? "Ⅱ（同一建物2人）" : "Ⅰ（通常）";
+    basicFeeLabel = `精神科訪問看護基本療養費${typeLabel}・${dayLabel}・${timeLabel}`;
+  }
+
+  items.push({ label: basicFeeLabel, amount: basicFee, unit: "円" });
+
+  // 訪問看護管理療養費（精神科でも同じ管理療養費を算定）
+  let managementFee = 0;
+  let managementFeeLabel = "";
+
+  if (input.isFirstVisitOfMonth) {
+    managementFee = MANAGEMENT_FEE_FIRST[input.managementFeeType];
+    const typeLabel: Record<ManagementFeeType, string> = {
+      kinoka1:  "機能強化型1",
+      kinoka2:  "機能強化型2",
+      kinoka3:  "機能強化型3",
+      kinoka4:  "機能強化型4（新設）",
+      standard: "通常",
+    };
+    managementFeeLabel = `訪問看護管理療養費（月初日・${typeLabel[input.managementFeeType]}）`;
+  } else {
+    managementFee = MANAGEMENT_FEE_SUBSEQUENT[input.singleBuildingResidentCount][input.monthlyVisitDays];
+    const countLabel: Record<SingleBuildingResidentCount, string> = {
+      under20: "単一建物20人未満",
+      "20-49": "単一建物20〜49人",
+      "50+":   "単一建物50人以上",
+    };
+    const dayLabel: Record<MonthlyVisitDays, string> = {
+      "1-15":  "月15日以下",
+      "16-24": "月16〜24日",
+      "25+":   "月25日以上",
+    };
+    managementFeeLabel = `訪問看護管理療養費（2日目以降・${countLabel[input.singleBuildingResidentCount]}・${dayLabel[input.monthlyVisitDays]}）`;
+  }
+
+  items.push({ label: managementFeeLabel, amount: managementFee, unit: "円" });
+
+  // 精神科緊急訪問看護加算
+  if (input.emergencyVisit) {
+    items.push({
+      label: "精神科緊急訪問看護加算",
+      amount: PSYCH_ADDITIONS.emergencyVisit,
+      unit: "円",
+      note: "定期外の緊急訪問",
+    });
+  }
+
+  // 長時間精神科訪問看護加算
+  if (input.longTimeVisit) {
+    items.push({
+      label: "長時間精神科訪問看護加算",
+      amount: PSYCH_ADDITIONS.longTimeVisit,
+      unit: "円",
+      note: "週1回（条件下では週3回）",
+    });
+  }
+
+  // 夜間・早朝 / 深夜加算
+  if (input.timeZone === "early_late") {
+    items.push({
+      label: "夜間・早朝訪問看護加算",
+      amount: PSYCH_ADDITIONS.earlyLate,
+      unit: "円",
+    });
+  } else if (input.timeZone === "midnight") {
+    items.push({
+      label: "深夜訪問看護加算",
+      amount: PSYCH_ADDITIONS.midnight,
+      unit: "円",
+    });
+  }
+
+  // 複数名精神科訪問看護加算
+  if (input.multipleStaff) {
+    const fee = input.multipleStaffType === "nurse"
+      ? PSYCH_ADDITIONS.multipleStaffNurse
+      : PSYCH_ADDITIONS.multipleStaffHelper;
+    const typeLabel = input.multipleStaffType === "nurse" ? "看護師等" : "看護補助者";
+    items.push({
+      label: `複数名精神科訪問看護加算（${typeLabel}）`,
+      amount: fee,
+      unit: "円",
+    });
+  }
+
+  // 精神科複数回訪問加算
+  if (input.multipleVisit) {
+    const fee = input.multipleVisitCount === "twice"
+      ? PSYCH_ADDITIONS.multipleVisitTwice
+      : PSYCH_ADDITIONS.multipleVisitThree;
+    const countLabel = input.multipleVisitCount === "twice" ? "1日2回" : "1日3回以上";
+    items.push({
+      label: `精神科複数回訪問加算（${countLabel}）`,
+      amount: fee,
+      unit: "円",
+    });
+  }
+
+  // 24時間対応体制加算
+  if (input.h24Support) {
+    const fee = H24_SUPPORT_FEE[input.h24SupportType];
+    const typeLabel = input.h24SupportType === "ika" ? "イ（負担軽減取組あり）" : "ロ（通常）";
+    items.push({
+      label: `24時間対応体制加算${typeLabel}`,
+      amount: fee,
+      unit: "円",
+      note: "月1回算定",
+    });
+  }
+
+  // 特別管理加算
+  if (input.specialManagement) {
+    const fee = SPECIAL_MANAGEMENT_FEE[input.specialManagementType];
+    const typeLabel = input.specialManagementType === "type1" ? "（1）重症度の高い者" : "（2）特別な管理が必要な者";
+    items.push({
+      label: `特別管理加算${typeLabel}`,
+      amount: fee,
+      unit: "円",
+      note: "月1回算定",
+    });
+  }
+
+  // ターミナルケア療養費
+  if (input.terminalCare) {
+    const fee = TERMINAL_CARE_FEE[input.terminalCareType];
+    const typeLabel = input.terminalCareType === "type1" ? "1（在宅死亡）" : "2（特養等での死亡）";
+    items.push({
+      label: `訪問看護ターミナルケア療養費${typeLabel}`,
+      amount: fee,
+      unit: "円",
+      note: "死亡月に算定",
+    });
+  }
+
+  const total = items.filter(i => !i.disabled).reduce((sum, item) => sum + item.amount, 0);
+  return { total, items, warnings };
+}
+
+// ============================================================
+// 介護予防訪問看護 メイン計算関数
+// ============================================================
+
+export function calculatePreventiveCare(input: PreventiveCareCalcInput): CalcResult {
+  const items: CalcLineItem[] = [];
+  const warnings: string[] = [];
+  const rate = CARE_REGION_RATES[input.regionRate];
+
+  // 基本単位数
+  const basicUnits = input.providerType === "station"
+    ? PREVENTIVE_CARE_BASIC_STATION[input.visitDuration]
+    : PREVENTIVE_CARE_BASIC_HOSPITAL[input.visitDuration];
+
+  const durationLabel: Record<PreventiveCareVisitDuration, string> = {
+    "20min":    "20分未満",
+    "30min":    "30分未満",
+    "60min":    "30分以上1時間未満",
+    "90min":    "1時間以上1時間30分未満",
+    "pt_ot_st": "理学療法士等による訪問",
+  };
+  const providerLabel = input.providerType === "station" ? "訪問看護ステーション" : "病院・診療所";
+
+  items.push({
+    label: `介護予防訪問看護費（${providerLabel}・${durationLabel[input.visitDuration]}）`,
+    amount: basicUnits,
+    unit: "単位",
+  });
+
+  // 緊急時訪問看護加算（Ⅰ）
+  if (input.emergencyVisit) {
+    items.push({
+      label: "緊急時訪問看護加算（Ⅰ）",
+      amount: PREVENTIVE_CARE_ADDITIONS.emergencyVisitI,
+      unit: "単位",
+      note: "月1回算定",
+    });
+  }
+
+  // 特別管理加算
+  if (input.specialManagement) {
+    const units = input.specialManagementType === "type1"
+      ? PREVENTIVE_CARE_ADDITIONS.specialMgmt1
+      : PREVENTIVE_CARE_ADDITIONS.specialMgmt2;
+    const typeLabel = input.specialManagementType === "type1" ? "（1）" : "（2）";
+    items.push({
+      label: `特別管理加算${typeLabel}`,
+      amount: units,
+      unit: "単位",
+      note: "月1回算定",
+    });
+  }
+
+  // ターミナルケア加算
+  if (input.terminalCare) {
+    items.push({
+      label: "ターミナルケア加算",
+      amount: PREVENTIVE_CARE_ADDITIONS.terminalCare,
+      unit: "単位",
+      note: "死亡月に算定",
+    });
+  }
+
+  // 初回加算
+  if (input.initialAdd) {
+    const units = input.initialAddType === "type1"
+      ? PREVENTIVE_CARE_ADDITIONS.initialAddI
+      : PREVENTIVE_CARE_ADDITIONS.initialAddII;
+    const typeLabel = input.initialAddType === "type1" ? "（Ⅰ）退院・施設退所後" : "（Ⅱ）通常";
+    items.push({
+      label: `初回加算${typeLabel}`,
+      amount: units,
+      unit: "単位",
+      note: "月1回算定",
+    });
+  }
+
+  // 複数名訪問看護加算
+  if (input.multipleVisit) {
+    const units = input.multipleVisitType === "nurse"
+      ? PREVENTIVE_CARE_ADDITIONS.multipleVisitNurse
+      : PREVENTIVE_CARE_ADDITIONS.multipleVisitOther;
+    const typeLabel = input.multipleVisitType === "nurse" ? "（Ⅰ）看護師等" : "（Ⅱ）その他";
+    items.push({
+      label: `複数名訪問看護加算${typeLabel}`,
+      amount: units,
+      unit: "単位",
+    });
+  }
+
+  // 夜間・早朝加算
+  if (input.earlyLate) {
+    const units = Math.round(basicUnits * 0.25);
+    items.push({
+      label: "夜間・早朝加算（所定単位数の25%）",
+      amount: units,
+      unit: "単位",
+    });
+  }
+
+  // 深夜加算
+  if (input.midnight) {
+    const units = Math.round(basicUnits * 0.50);
+    items.push({
+      label: "深夜加算（所定単位数の50%）",
+      amount: units,
+      unit: "単位",
+    });
+  }
+
+  const totalUnits = items.filter(i => !i.disabled).reduce((sum, i) => sum + i.amount, 0);
+  const totalYen = Math.floor(totalUnits * rate);
+
+  return {
+    total: totalUnits,
+    totalUnit: totalUnits,
+    totalYen,
+    items,
+    warnings,
+  };
+}
+
+/** デフォルト入力値（精神科訪問看護） */
+export const defaultPsychInput: PsychCalcInput = {
+  basicFeeType: "type1",
+  visitDuration: "over30",
+  weeklyVisitDay: "1-3",
+  isFirstVisitOfMonth: true,
+  managementFeeType: "standard",
+  singleBuildingResidentCount: "under20",
+  monthlyVisitDays: "1-15",
+  emergencyVisit: false,
+  longTimeVisit: false,
+  timeZone: "normal",
+  multipleStaff: false,
+  multipleStaffType: "nurse",
+  multipleVisit: false,
+  multipleVisitCount: "twice",
+  h24Support: false,
+  h24SupportType: "ika",
+  specialManagement: false,
+  specialManagementType: "type1",
+  terminalCare: false,
+  terminalCareType: "type1",
+};
+
+/** デフォルト入力値（介護予防訪問看護） */
+export const defaultPreventiveCareInput: PreventiveCareCalcInput = {
+  providerType: "station",
+  visitDuration: "60min",
+  regionRate: "10.00",
+  emergencyVisit: false,
+  specialManagement: false,
+  specialManagementType: "type1",
+  terminalCare: false,
+  initialAdd: false,
+  initialAddType: "type2",
+  multipleVisit: false,
+  multipleVisitType: "nurse",
+  earlyLate: false,
+  midnight: false,
+};
+
+/** デフォルト自立支援医療上限管理 */
+export const defaultSeishinCopayTracker: SeishinCopayTracker = {
+  monthlyLimit: 5000,
+  alreadyPaid: 0,
+};

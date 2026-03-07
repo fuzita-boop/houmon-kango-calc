@@ -47,10 +47,12 @@ interface CopayFormProps {
 }
 
 export default function CopayForm({ input, insuranceMode, onChange }: CopayFormProps) {
-  if (insuranceMode === "care") {
+  if (insuranceMode === "care" || insuranceMode === "preventive") {
     return (
       <div className="space-y-3">
-        <h3 className="text-sm font-bold text-stone-800 border-l-2 border-amber-500 pl-2">患者負担割合（介護保険）</h3>
+        <h3 className="text-sm font-bold text-stone-800 border-l-2 border-amber-500 pl-2">
+          患者負担割合（{insuranceMode === "preventive" ? "介護予防訪問看護" : "介護保険"}）
+        </h3>
         <RadioGroup<"1" | "2" | "3">
           label="負担割合"
           value={input.careCopayRatio}
@@ -70,7 +72,9 @@ export default function CopayForm({ input, insuranceMode, onChange }: CopayFormP
 
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-bold text-stone-800 border-l-2 border-amber-500 pl-2">患者負担設定（医療保険）</h3>
+      <h3 className="text-sm font-bold text-stone-800 border-l-2 border-amber-500 pl-2">
+        患者負担設定（{insuranceMode === "psychiatric" ? "精神科訪問看護" : "医療保険"}）
+      </h3>
 
       {/* 公費負担の有無 */}
       <RadioGroup<KohiType>
