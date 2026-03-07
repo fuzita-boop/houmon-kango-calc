@@ -36,6 +36,7 @@ import {
   AlertCircleIcon,
   CopyIcon,
   SparklesIcon,
+  InfoIcon,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -48,11 +49,12 @@ interface CalendarProps {
   month: number;
   visitDates: Set<string>;
   selectedDate: string | null;
+  firstVisitDate: string | null;
   onToggle: (date: string) => void;
   onSelect: (date: string) => void;
 }
 
-function Calendar({ year, month, visitDates, selectedDate, onToggle, onSelect }: CalendarProps) {
+function Calendar({ year, month, visitDates, selectedDate, firstVisitDate, onToggle, onSelect }: CalendarProps) {
   const firstDay = new Date(year, month - 1, 1).getDay(); // 0=日
   const daysInMonth = new Date(year, month, 0).getDate();
   const today = new Date().toISOString().split("T")[0];
@@ -85,6 +87,7 @@ function Calendar({ year, month, visitDates, selectedDate, onToggle, onSelect }:
               const isVisit = visitDates.has(dateStr);
               const isSelected = selectedDate === dateStr;
               const isToday = dateStr === today;
+              const isFirst = firstVisitDate === dateStr;
               const dayOfWeek = (firstDay + (day - 1)) % 7;
               return (
                 <button
@@ -106,6 +109,8 @@ function Calendar({ year, month, visitDates, selectedDate, onToggle, onSelect }:
                     "relative aspect-square flex flex-col items-center justify-center rounded-lg text-sm font-medium transition-all duration-150 select-none",
                     isSelected && isVisit
                       ? "bg-amber-600 text-white shadow-md ring-2 ring-amber-400 ring-offset-1"
+                      : isFirst
+                      ? "bg-amber-500 text-white border-2 border-amber-600 shadow-sm hover:bg-amber-600"
                       : isVisit
                       ? "bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200"
                       : isToday
@@ -116,7 +121,10 @@ function Calendar({ year, month, visitDates, selectedDate, onToggle, onSelect }:
                   )}
                 >
                   <span>{day}</span>
-                  {isVisit && (
+                  {isFirst && (
+                    <span className="absolute top-0.5 right-0.5 text-[8px] font-bold bg-red-500 text-white rounded-full w-3.5 h-3.5 flex items-center justify-center leading-none">初</span>
+                  )}
+                  {isVisit && !isFirst && (
                     <span className="absolute bottom-0.5 w-1 h-1 rounded-full bg-amber-500" />
                   )}
                 </button>
@@ -295,13 +303,22 @@ function VisitDetailPanel({ dateStr, store, onClose }: VisitDetailPanelProps) {
             )}
           </div>
         ) : (
-          <div className="p-4">
+          <div className="p-4 space-y-3">
+            {/* 患者負担の全日同期バナー */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex items-start gap-2">
+              <InfoIcon className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-blue-700">
+                ここで変更した患者負担設定は、<strong>当月の全訪問日に自動で反映</strong>されます。
+              </p>
+            </div>
             <CopayForm
               input={visitDay.copayInput}
               insuranceMode={visitDay.insuranceMode}
-              onChange={(updates) => store.updateVisitDay(dateStr, {
-                copayInput: { ...visitDay.copayInput, ...updates }
-              })}
+              onChange={(updates) => {
+                const newCopay = { ...visitDay.copayInput, ...updates };
+                // 全訪問日に同期
+                store.updateCopayForAll(newCopay);
+              }}
             />
           </div>
         )}
@@ -622,6 +639,12 @@ export default function Home() {
     [store.currentMonthVisits]
   );
 
+  // 当月の初回訪問日（最も早い日付）
+  const firstVisitDate = useMemo(
+    () => store.currentMonthVisits.length > 0 ? store.currentMonthVisits[0].date : null,
+    [store.currentMonthVisits]
+  );
+
   const selectedVisitDay = store.selectedDate ? store.getVisitDay(store.selectedDate) : null;
 
   return (
@@ -764,6 +787,7 @@ export default function Home() {
                 month={store.month}
                 visitDates={visitDates}
                 selectedDate={store.selectedDate}
+                firstVisitDate={firstVisitDate}
                 onToggle={store.toggleVisitDay}
                 onSelect={store.setSelectedDate}
               />

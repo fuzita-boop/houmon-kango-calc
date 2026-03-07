@@ -1,0 +1,25 @@
+{
+  "name": "訪問看護 料金計算",
+  "short_name": "訪問看護",
+  "description": "令和8年度診療報酬改定準拠の訪問看護療養費計算アプリ",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFBF5",
+  "theme_color": "#B45309",
+  "lang": "ja",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://d2xsxph8kpxj0f.cloudfront.net/310519663217122276/FG92nY6LS36bAcHgYa3NZb/icon-192_708cbac2.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://d2xsxph8kpxj0f.cloudfront.net/310519663217122276/FG92nY6LS36bAcHgYa3NZb/icon-512_1d4338d4.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

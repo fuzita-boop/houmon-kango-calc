@@ -299,6 +299,22 @@ export function useVisitStore() {
   }, []);
 
   /**
+   * 当月の全訪問日に同じ患者負担設定を反映する
+   * （患者負担タブで変更した際に全日に適用）
+   */
+  const updateCopayForAll = useCallback((copayInput: PatientCopayInput) => {
+    setVisitDays((prev) =>
+      prev.map((d) => {
+        const [vy, vm] = d.date.split("-").map(Number);
+        if (vy === year && vm === month) {
+          return { ...d, copayInput: { ...copayInput, insuranceType: d.insuranceMode } };
+        }
+        return d;
+      })
+    );
+  }, [year, month]);
+
+  /**
    * 指定日に直前の訪問日の条件を手動でコピーする
    * （詳細パネルの「前回の条件をコピー」ボタン用）
    */
@@ -357,7 +373,7 @@ export function useVisitStore() {
     selectedDate, setSelectedDate,
     patientName, setPatientName,
     stationName, setStationName,
-    getVisitDay, toggleVisitDay, updateVisitDay, copyPrevConditions,
+    getVisitDay, toggleVisitDay, updateVisitDay, copyPrevConditions, updateCopayForAll,
     prevMonth, nextMonth,
   };
 }
