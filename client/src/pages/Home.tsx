@@ -34,6 +34,8 @@ import {
   ChevronUpIcon,
   CheckCircle2Icon,
   AlertCircleIcon,
+  CopyIcon,
+  SparklesIcon,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -142,6 +144,7 @@ interface VisitDetailPanelProps {
 function VisitDetailPanel({ dateStr, store, onClose }: VisitDetailPanelProps) {
   const visitDay = store.getVisitDay(dateStr);
   const [activeTab, setActiveTab] = useState<"calc" | "copay">("calc");
+  const [showAutoCopyBanner, setShowAutoCopyBanner] = useState(visitDay?.wasAutoCopied ?? false);
 
   if (!visitDay) return null;
 
@@ -197,6 +200,25 @@ function VisitDetailPanel({ dateStr, store, onClose }: VisitDetailPanelProps) {
         </div>
       </div>
 
+      {/* 自動コピー通知バナー */}
+      {showAutoCopyBanner && (
+        <div className="bg-green-50 border-b border-green-200 px-4 py-2 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            <SparklesIcon className="w-4 h-4 text-green-600 shrink-0" />
+            <span className="text-xs text-green-700 font-medium">
+              前回の訪問条件を自動引き継ぎしました
+              <span className="text-green-500 font-normal ml-1">（月1回加算は自動でOFF）</span>
+            </span>
+          </div>
+          <button
+            onClick={() => setShowAutoCopyBanner(false)}
+            className="text-green-500 hover:text-green-700 p-1"
+          >
+            <XIcon className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* 保険種別切替 */}
       <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex gap-2 shrink-0">
         <button
@@ -239,6 +261,17 @@ function VisitDetailPanel({ dateStr, store, onClose }: VisitDetailPanelProps) {
               : "text-stone-500 hover:text-stone-700"
           )}
         >患者負担</button>
+        {/* 前回の条件をコピーボタン */}
+        <button
+          onClick={() => {
+            store.copyPrevConditions(dateStr);
+            setShowAutoCopyBanner(true);
+          }}
+          title="前回の訪問条件をコピー"
+          className="px-3 py-2.5 text-stone-400 hover:text-amber-600 hover:bg-amber-50 transition-colors border-l border-stone-200"
+        >
+          <CopyIcon className="w-4 h-4" />
+        </button>
       </div>
 
       {/* コンテンツ */}
