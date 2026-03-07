@@ -1,962 +1,825 @@
 /**
  * 訪問看護療養費計算アプリ - メインページ
- * Design: ダッシュボード・プロフェッショナル
- * - 淡い青みがかったホワイト背景
- * - スカイブルーをプライマリカラー
- * - モバイルファースト、片手操作対応
- * - 令和8年度（2026年度）診療報酬改定 準拠
+ * Design: ウォームアンバー・プロフェッショナル
+ * - テラコッタ/アンバーオレンジをプライマリカラー
+ * - カレンダーで訪問日を選択して月次集計
+ * - 医療保険・介護保険の両対応
+ * - 患者負担額計算・印刷機能付き
  */
 
 import { useState, useMemo } from "react";
+import { cn } from "@/lib/utils";
+import { useVisitStore } from "@/hooks/useVisitStore";
+import type { InsuranceMode } from "@/hooks/useVisitStore";
 import {
   calculate,
-  getDisabledFields,
+  calculateCare,
+  calcCopay,
   formatYen,
-  defaultInput,
+  CARE_REGION_OPTIONS,
 } from "@/lib/calcEngine";
-import type {
-  CalcInput,
-  CalcMode,
-  StaffType,
-  BuildingResidentCount,
-  SingleBuildingResidentCount,
-  VisitDuration,
-  WeeklyVisitDay,
-  MonthlyVisitDayForBasic,
-  MonthlyVisitDays,
-  MultipleVisitCount,
-  CoVisitStaffType,
-  TimeZone,
-  SpecialManagementType,
-  InfoProvisionType,
-  ManagementFeeType,
-  TerminalCareType,
-  CalcResult,
-} from "@/lib/calcEngine";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import MedicalForm from "@/components/MedicalForm";
+import CareForm from "@/components/CareForm";
+import CopayForm from "@/components/CopayForm";
 import {
-  InfoIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  PrinterIcon,
+  XIcon,
+  CalendarDaysIcon,
+  ClipboardListIcon,
+  UserIcon,
+  BuildingIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  AlertCircleIcon,
   CheckCircle2Icon,
-  XCircleIcon,
-  RotateCcwIcon,
+  AlertCircleIcon,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 
 // ============================================================
-// ラジオグループコンポーネント
+// カレンダーコンポーネント
 // ============================================================
-interface RadioGroupProps<T extends string> {
-  label: string;
-  value: T;
-  options: { value: T; label: string; sublabel?: string }[];
-  onChange: (v: T) => void;
-  disabled?: boolean;
-  tooltip?: string;
+interface CalendarProps {
+  year: number;
+  month: number;
+  visitDates: Set<string>;
+  selectedDate: string | null;
+  onToggle: (date: string) => void;
+  onSelect: (date: string) => void;
 }
 
-function RadioGroup<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-  disabled,
-  tooltip,
-}: RadioGroupProps<T>) {
+function Calendar({ year, month, visitDates, selectedDate, onToggle, onSelect }: CalendarProps) {
+  const firstDay = new Date(year, month - 1, 1).getDay(); // 0=日
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const today = new Date().toISOString().split("T")[0];
+
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const weeks: (number | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) {
+    weeks.push(cells.slice(i, i + 7));
+  }
+
   return (
-    <div className={cn("space-y-1.5", disabled && "opacity-40 pointer-events-none")}>
-      <div className="flex items-center gap-1.5">
-        <span className="text-sm font-medium text-slate-700">{label}</span>
-        {tooltip && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <InfoIcon className="w-3.5 h-3.5 text-slate-400 cursor-help" />
-            </TooltipTrigger>
-            <TooltipContent className="max-w-[240px] text-xs">{tooltip}</TooltipContent>
-          </Tooltip>
-        )}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {options.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onChange(opt.value)}
-            className={cn(
-              "px-3 py-1.5 rounded-md text-sm font-medium border transition-all duration-150 text-left",
-              value === opt.value
-                ? "bg-sky-600 text-white border-sky-600 shadow-sm"
-                : "bg-white text-slate-600 border-slate-200 hover:border-sky-400 hover:text-sky-600"
-            )}
-          >
-            <span>{opt.label}</span>
-            {opt.sublabel && (
-              <span className={cn("block text-xs mt-0.5", value === opt.value ? "text-sky-100" : "text-slate-400")}>
-                {opt.sublabel}
-              </span>
-            )}
-          </button>
+    <div className="w-full">
+      <div className="grid grid-cols-7 mb-1">
+        {["日","月","火","水","木","金","土"].map((d, i) => (
+          <div key={d} className={cn(
+            "text-center text-xs font-medium py-1",
+            i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : "text-stone-500"
+          )}>{d}</div>
         ))}
       </div>
-    </div>
-  );
-}
-
-// ============================================================
-// チェックボックス行コンポーネント
-// ============================================================
-interface CheckRowProps {
-  id: string;
-  label: string;
-  sublabel?: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  disabled?: boolean;
-  disabledReason?: string;
-  children?: React.ReactNode;
-}
-
-function CheckRow({
-  id,
-  label,
-  sublabel,
-  checked,
-  onChange,
-  disabled,
-  disabledReason,
-  children,
-}: CheckRowProps) {
-  return (
-    <div className={cn("space-y-2", disabled && "opacity-40")}>
-      <div className="flex items-start gap-3">
-        <input
-          type="checkbox"
-          id={id}
-          checked={checked}
-          onChange={(e) => !disabled && onChange(e.target.checked)}
-          disabled={disabled}
-          className="w-4 h-4 mt-0.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer disabled:cursor-not-allowed shrink-0"
-        />
-        <label
-          htmlFor={id}
-          className={cn(
-            "text-sm font-medium text-slate-700 select-none leading-snug",
-            disabled ? "cursor-not-allowed" : "cursor-pointer"
-          )}
-        >
-          {label}
-          {sublabel && <span className="block text-xs text-slate-400 font-normal mt-0.5">{sublabel}</span>}
-        </label>
-        {disabled && disabledReason && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <XCircleIcon className="w-4 h-4 text-slate-400 cursor-help shrink-0 mt-0.5" />
-            </TooltipTrigger>
-            <TooltipContent className="max-w-[200px] text-xs">{disabledReason}</TooltipContent>
-          </Tooltip>
-        )}
-      </div>
-      {checked && !disabled && children && (
-        <div className="ml-7 pl-3 border-l-2 border-sky-200 space-y-3">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ============================================================
-// セクションカードコンポーネント
-// ============================================================
-interface SectionCardProps {
-  title: string;
-  icon?: React.ReactNode;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-  badge?: string;
-}
-
-function SectionCard({
-  title,
-  icon,
-  children,
-  defaultOpen = true,
-  badge,
-}: SectionCardProps) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <Card className="border-slate-200 shadow-sm">
-      <CardHeader
-        className="py-3 px-4 cursor-pointer select-none"
-        onClick={() => setOpen(!open)}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {icon && <span className="text-sky-600">{icon}</span>}
-            <CardTitle className="text-base font-semibold text-slate-800">{title}</CardTitle>
-            {badge && (
-              <Badge variant="outline" className="text-xs border-emerald-300 text-emerald-700 bg-emerald-50">
-                {badge}
-              </Badge>
-            )}
+      <div className="space-y-1">
+        {weeks.map((week, wi) => (
+          <div key={wi} className="grid grid-cols-7 gap-0.5">
+            {week.map((day, di) => {
+              if (!day) return <div key={di} />;
+              const dateStr = `${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+              const isVisit = visitDates.has(dateStr);
+              const isSelected = selectedDate === dateStr;
+              const isToday = dateStr === today;
+              const dayOfWeek = (firstDay + (day - 1)) % 7;
+              return (
+                <button
+                  key={di}
+                  type="button"
+                  onClick={() => {
+                    if (isVisit) {
+                      onSelect(dateStr);
+                    } else {
+                      onToggle(dateStr);
+                      onSelect(dateStr);
+                    }
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    if (isVisit) onToggle(dateStr);
+                  }}
+                  className={cn(
+                    "relative aspect-square flex flex-col items-center justify-center rounded-lg text-sm font-medium transition-all duration-150 select-none",
+                    isSelected && isVisit
+                      ? "bg-amber-600 text-white shadow-md ring-2 ring-amber-400 ring-offset-1"
+                      : isVisit
+                      ? "bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200"
+                      : isToday
+                      ? "border-2 border-amber-400 text-amber-700 hover:bg-amber-50"
+                      : "hover:bg-stone-100 text-stone-700",
+                    dayOfWeek === 0 && !isVisit && !isSelected && "text-red-500",
+                    dayOfWeek === 6 && !isVisit && !isSelected && "text-blue-500",
+                  )}
+                >
+                  <span>{day}</span>
+                  {isVisit && (
+                    <span className="absolute bottom-0.5 w-1 h-1 rounded-full bg-amber-500" />
+                  )}
+                </button>
+              );
+            })}
           </div>
-          {open ? (
-            <ChevronUpIcon className="w-4 h-4 text-slate-400" />
-          ) : (
-            <ChevronDownIcon className="w-4 h-4 text-slate-400" />
-          )}
-        </div>
-      </CardHeader>
-      {open && (
-        <CardContent className="px-4 pb-4 space-y-4">
-          {children}
-        </CardContent>
-      )}
-    </Card>
+        ))}
+      </div>
+      <div className="mt-2 text-xs text-stone-400 text-center">
+        タップで訪問日を追加 / 長押しで削除
+      </div>
+    </div>
   );
 }
 
 // ============================================================
-// メインコンポーネント
+// 訪問日詳細パネル
 // ============================================================
-export default function Home() {
-  const [input, setInput] = useState<CalcInput>(defaultInput);
+interface VisitDetailPanelProps {
+  dateStr: string;
+  store: ReturnType<typeof useVisitStore>;
+  onClose: () => void;
+}
 
-  const update = <K extends keyof CalcInput>(key: K, value: CalcInput[K]) => {
-    setInput((prev) => ({ ...prev, [key]: value }));
-  };
+function VisitDetailPanel({ dateStr, store, onClose }: VisitDetailPanelProps) {
+  const visitDay = store.getVisitDay(dateStr);
+  const [activeTab, setActiveTab] = useState<"calc" | "copay">("calc");
 
-  const handleReset = () => setInput(defaultInput);
+  if (!visitDay) return null;
 
-  const disabledFields = useMemo(() => getDisabledFields(input), [input]);
-  const result = useMemo(() => calculate(input), [input]);
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dateLabel = `${y}年${m}月${d}日`;
+  const weekdays = ["日","月","火","水","木","金","土"];
+  const dow = weekdays[new Date(y, m - 1, d).getDay()];
 
-  const isComprehensive = input.mode === "comprehensive";
+  // リアルタイム計算
+  let total = 0;
+  let totalYen = 0;
+  let copayAmount = 0;
+  let copayNote = "";
+  let resultItems: { label: string; amount: number; unit?: string; note?: string; disabled?: boolean }[] = [];
+  let warnings: string[] = [];
+
+  if (visitDay.insuranceMode === "medical") {
+    const result = calculate(visitDay.medicalInput);
+    total = result.total;
+    totalYen = result.total;
+    resultItems = result.items;
+    warnings = result.warnings;
+    const copay = calcCopay(result.total, visitDay.copayInput);
+    copayAmount = copay.amount;
+    copayNote = copay.note;
+  } else {
+    const result = calculateCare(visitDay.careInput);
+    total = result.totalUnit ?? 0;
+    totalYen = result.totalYen ?? 0;
+    resultItems = result.items;
+    warnings = result.warnings;
+    const copay = calcCopay(totalYen, { ...visitDay.copayInput, insuranceType: "care" });
+    copayAmount = copay.amount;
+    copayNote = copay.note;
+  }
+
+  const rateNum = parseFloat(visitDay.careInput.regionRate);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="fixed inset-0 z-50 flex flex-col bg-white">
       {/* ヘッダー */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="text-base font-bold text-slate-800 leading-tight">
-              訪問看護療養費 計算アプリ
-            </h1>
-            <p className="text-xs text-slate-500">令和8年度（2026年度）診療報酬改定 準拠</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs border-sky-300 text-sky-700 bg-sky-50">
-              医療保険
-            </Badge>
-            <button
-              type="button"
-              onClick={handleReset}
-              className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 border border-slate-200 rounded-md px-2 py-1.5 bg-white hover:bg-slate-50 transition-colors"
-            >
-              <RotateCcwIcon className="w-3 h-3" />
-              リセット
-            </button>
-          </div>
+      <div className="bg-amber-600 text-white px-4 py-3 flex items-center gap-3 shrink-0">
+        <button onClick={onClose} className="p-1 rounded-full hover:bg-amber-700 transition-colors">
+          <XIcon className="w-5 h-5" />
+        </button>
+        <div className="flex-1">
+          <div className="font-bold text-base">{dateLabel}（{dow}）</div>
+          <div className="text-xs text-amber-100">訪問算定条件の設定</div>
         </div>
-      </header>
+        <div className="text-right">
+          <div className="text-xs text-amber-100">合計</div>
+          <div className="font-bold text-lg">{formatYen(totalYen)}</div>
+        </div>
+      </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-4 space-y-4 pb-52">
+      {/* 保険種別切替 */}
+      <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex gap-2 shrink-0">
+        <button
+          onClick={() => store.updateVisitDay(dateStr, { insuranceMode: "medical" })}
+          className={cn(
+            "flex-1 py-2 rounded-lg text-sm font-bold transition-all",
+            visitDay.insuranceMode === "medical"
+              ? "bg-amber-600 text-white shadow-sm"
+              : "bg-white text-stone-600 border border-stone-200 hover:border-amber-400"
+          )}
+        >医療保険</button>
+        <button
+          onClick={() => store.updateVisitDay(dateStr, { insuranceMode: "care" })}
+          className={cn(
+            "flex-1 py-2 rounded-lg text-sm font-bold transition-all",
+            visitDay.insuranceMode === "care"
+              ? "bg-teal-600 text-white shadow-sm"
+              : "bg-white text-stone-600 border border-stone-200 hover:border-teal-400"
+          )}
+        >介護保険</button>
+      </div>
 
-        {/* ===== 算定方式の切り替え ===== */}
-        <Card className="border-2 border-sky-200 bg-gradient-to-r from-sky-50 to-white shadow-sm">
-          <CardContent className="px-4 py-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-800 mb-0.5">算定方式</p>
-                <p className="text-xs text-slate-500 leading-snug">
-                  {isComprehensive
-                    ? "包括型：1日単位の包括評価（令和8年度新設）"
-                    : "従来型：出来高算定（基本療養費＋管理療養費＋各加算）"}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span
-                  className={cn(
-                    "text-sm font-medium",
-                    !isComprehensive ? "text-sky-700" : "text-slate-400"
-                  )}
-                >
-                  従来型
-                </span>
-                <Switch
-                  checked={isComprehensive}
-                  onCheckedChange={(v) =>
-                    update("mode", v ? "comprehensive" : "traditional")
-                  }
-                  className="data-[state=checked]:bg-emerald-500"
-                />
-                <span
-                  className={cn(
-                    "text-sm font-medium",
-                    isComprehensive ? "text-emerald-600" : "text-slate-400"
-                  )}
-                >
-                  包括型
-                </span>
-              </div>
-            </div>
-            {isComprehensive && (
-              <div className="mt-3 p-2.5 bg-emerald-50 border border-emerald-200 rounded-md">
-                <p className="text-xs text-emerald-700 font-medium leading-snug">
-                  ⚠ 包括型算定日は、難病等複数回訪問加算・複数名訪問加算・早朝夜間加算・深夜加算・24時間対応体制加算は算定できません。
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* タブ */}
+      <div className="border-b border-stone-200 flex shrink-0">
+        <button
+          onClick={() => setActiveTab("calc")}
+          className={cn(
+            "flex-1 py-2.5 text-sm font-medium transition-colors",
+            activeTab === "calc"
+              ? "border-b-2 border-amber-600 text-amber-700"
+              : "text-stone-500 hover:text-stone-700"
+          )}
+        >算定条件</button>
+        <button
+          onClick={() => setActiveTab("copay")}
+          className={cn(
+            "flex-1 py-2.5 text-sm font-medium transition-colors",
+            activeTab === "copay"
+              ? "border-b-2 border-amber-600 text-amber-700"
+              : "text-stone-500 hover:text-stone-700"
+          )}
+        >患者負担</button>
+      </div>
 
-        {/* ===== 従来型：訪問看護基本療養費 ===== */}
-        {!isComprehensive && (
-          <SectionCard title="訪問看護基本療養費">
-            <RadioGroup<StaffType>
-              label="訪問職種"
-              value={input.staffType}
-              onChange={(v) => update("staffType", v)}
-              options={[
-                { value: "nurse", label: "看護師等", sublabel: "保健師・助産師・看護師" },
-                { value: "junkango", label: "准看護師" },
-                {
-                  value: "specialist",
-                  label: "専門看護師",
-                  sublabel: "緩和ケア・褥瘡ケア等",
-                },
-                { value: "pt_ot_st", label: "PT・OT・ST" },
-              ]}
-              tooltip="保健師・助産師・看護師は「看護師等」を選択。緩和ケア・褥瘡ケア・人工肛門ケア等の専門研修修了看護師は「専門看護師」を選択してください。"
-            />
-
-            {input.staffType !== "specialist" && (
-              <RadioGroup<WeeklyVisitDay>
-                label="週の訪問日数"
-                value={input.weeklyVisitDay}
-                onChange={(v) => update("weeklyVisitDay", v)}
-                options={[
-                  { value: "1-3", label: "週3日目まで" },
-                  { value: "4+", label: "週4日目以降" },
-                ]}
-                tooltip="同一利用者への同一週の訪問回数です。"
+      {/* コンテンツ */}
+      <div className="flex-1 overflow-y-auto">
+        {activeTab === "calc" ? (
+          <div className="p-4">
+            {visitDay.insuranceMode === "medical" ? (
+              <MedicalForm
+                input={visitDay.medicalInput}
+                onChange={(updates) => store.updateVisitDay(dateStr, {
+                  medicalInput: { ...visitDay.medicalInput, ...updates }
+                })}
+              />
+            ) : (
+              <CareForm
+                input={visitDay.careInput}
+                onChange={(updates) => store.updateVisitDay(dateStr, {
+                  careInput: { ...visitDay.careInput, ...updates }
+                })}
               />
             )}
-
-            {/* 同一建物居住者スイッチ */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <Switch
-                  id="same-building"
-                  checked={input.isSameBuilding}
-                  onCheckedChange={(v) => update("isSameBuilding", v)}
-                />
-                <Label
-                  htmlFor="same-building"
-                  className="text-sm font-medium text-slate-700 cursor-pointer"
-                >
-                  同一建物居住者への訪問（基本療養費Ⅱ）
-                </Label>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <InfoIcon className="w-3.5 h-3.5 text-slate-400 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-[240px] text-xs">
-                    同一の建物に居住する他の利用者に対して、同一日に訪問看護を行う場合に選択してください。
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-
-              {input.isSameBuilding && (
-                <div className="ml-7 pl-3 border-l-2 border-sky-200 space-y-3">
-                  <RadioGroup<BuildingResidentCount>
-                    label="同一建物内の同一日訪問人数"
-                    value={input.buildingResidentCount}
-                    onChange={(v) => update("buildingResidentCount", v)}
-                    options={[
-                      { value: "1-2", label: "2人" },
-                      { value: "3-9", label: "3〜9人" },
-                      { value: "10-19", label: "10〜19人" },
-                      { value: "20-49", label: "20〜49人" },
-                      { value: "50+", label: "50人以上" },
-                    ]}
-                  />
-                  {["10-19", "20-49", "50+"].includes(
-                    input.buildingResidentCount
-                  ) && (
-                    <RadioGroup<MonthlyVisitDayForBasic>
-                      label="月の訪問日数"
-                      value={input.monthlyVisitDayForBasic}
-                      onChange={(v) => update("monthlyVisitDayForBasic", v)}
-                      options={[
-                        { value: "1-20", label: "月20日目まで" },
-                        { value: "21+", label: "月21日目以降" },
-                      ]}
-                    />
-                  )}
-                </div>
-              )}
-            </div>
-          </SectionCard>
-        )}
-
-        {/* ===== 包括型：基本情報 ===== */}
-        {isComprehensive && (
-          <SectionCard title="包括型訪問看護療養費" badge="令和8年度新設">
-            <RadioGroup<SingleBuildingResidentCount>
-              label="単一建物居住者の人数"
-              value={input.comprehensiveBuildingCount}
-              onChange={(v) => update("comprehensiveBuildingCount", v)}
-              options={[
-                { value: "under20", label: "20人未満" },
-                { value: "20-49", label: "20〜49人" },
-                { value: "50+", label: "50人以上" },
-              ]}
-              tooltip="当該訪問看護ステーションが同一建物に居住する利用者に訪問看護を行う場合の人数区分です。"
-            />
-            <RadioGroup<VisitDuration>
-              label="1日の訪問時間合計"
-              value={input.visitDuration}
-              onChange={(v) => update("visitDuration", v)}
-              options={[
-                {
-                  value: "30-60",
-                  label: "30〜60分未満",
-                  sublabel: "1日1回・30分以上",
-                },
-                {
-                  value: "60-90",
-                  label: "60〜90分未満",
-                  sublabel: "1日3回以上・60分以上",
-                },
-                {
-                  value: "90+",
-                  label: "90分以上",
-                  sublabel: "1日3回以上・90分以上",
-                },
-                {
-                  value: "90+-special",
-                  label: "90分以上（特別）",
-                  sublabel: "特別訪問看護指示書等",
-                },
-              ]}
-              tooltip="1日に行った複数回の訪問看護の実施時間を合算した時間区分です。「特別」は特別訪問看護指示書が交付された場合等に該当します。"
-            />
-            <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-md">
-              <p className="text-xs text-slate-600 leading-relaxed">
-                <span className="font-semibold">算定要件：</span>
-                日中・夜間帯（18:00〜8:00）に少なくともそれぞれ1回ずつ訪問が必要。
-                60分以上の場合は1日3回以上の訪問が必要。
-                1日1回以上、看護職員（准看護師を除く）による訪問が必要。
-              </p>
-            </div>
-          </SectionCard>
-        )}
-
-        {/* ===== 訪問看護管理療養費（従来型のみ） ===== */}
-        {!isComprehensive && (
-          <SectionCard title="訪問看護管理療養費">
-            <div className="flex items-center gap-3">
-              <Switch
-                id="first-visit"
-                checked={input.isFirstVisitOfMonth}
-                onCheckedChange={(v) => update("isFirstVisitOfMonth", v)}
-              />
-              <Label
-                htmlFor="first-visit"
-                className="text-sm font-medium text-slate-700 cursor-pointer"
-              >
-                月の初日の訪問
-              </Label>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <InfoIcon className="w-3.5 h-3.5 text-slate-400 cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-[240px] text-xs">
-                  月の初日の訪問の場合は機能強化型の種別に応じた点数、2日目以降は単一建物居住者数と月の訪問日数に応じた点数となります。
-                </TooltipContent>
-              </Tooltip>
-            </div>
-
-            {input.isFirstVisitOfMonth && (
-              <RadioGroup<ManagementFeeType>
-                label="管理療養費の種別"
-                value={input.managementFeeType}
-                onChange={(v) => update("managementFeeType", v)}
-                options={[
-                  {
-                    value: "standard",
-                    label: "通常",
-                    sublabel: "7,710円",
-                  },
-                  {
-                    value: "kinoka1",
-                    label: "機能強化型1",
-                    sublabel: "13,760円",
-                  },
-                  {
-                    value: "kinoka2",
-                    label: "機能強化型2",
-                    sublabel: "10,460円",
-                  },
-                  {
-                    value: "kinoka3",
-                    label: "機能強化型3",
-                    sublabel: "9,030円",
-                  },
-                  {
-                    value: "kinoka4",
-                    label: "機能強化型4",
-                    sublabel: "9,030円（新設）",
-                  },
-                ]}
-                tooltip="機能強化型は別途届出が必要です。令和8年度より機能強化型4が新設されました。"
-              />
-            )}
-
-            {!input.isFirstVisitOfMonth && (
-              <div className="space-y-3">
-                <RadioGroup<SingleBuildingResidentCount>
-                  label="単一建物居住者の人数"
-                  value={input.singleBuildingResidentCount}
-                  onChange={(v) => update("singleBuildingResidentCount", v)}
-                  options={[
-                    { value: "under20", label: "20人未満", sublabel: "3,010円" },
-                    { value: "20-49", label: "20〜49人" },
-                    { value: "50+", label: "50人以上" },
-                  ]}
-                  tooltip="当該訪問看護ステーションが同一建物に居住する利用者に訪問看護を行う場合の人数区分です。"
-                />
-                {input.singleBuildingResidentCount !== "under20" && (
-                  <RadioGroup<MonthlyVisitDays>
-                    label="月の訪問日数"
-                    value={input.monthlyVisitDays}
-                    onChange={(v) => update("monthlyVisitDays", v)}
-                    options={[
-                      {
-                        value: "1-15",
-                        label: "月15日以下",
-                        sublabel:
-                          input.singleBuildingResidentCount === "20-49"
-                            ? "2,510円"
-                            : "2,410円",
-                      },
-                      {
-                        value: "16-24",
-                        label: "月16〜24日",
-                        sublabel:
-                          input.singleBuildingResidentCount === "20-49"
-                            ? "2,310円"
-                            : "2,210円",
-                      },
-                      {
-                        value: "25+",
-                        label: "月25日以上",
-                        sublabel:
-                          input.singleBuildingResidentCount === "20-49"
-                            ? "2,210円"
-                            : "2,010円",
-                      },
-                    ]}
-                  />
-                )}
-              </div>
-            )}
-          </SectionCard>
-        )}
-
-        {/* ===== 各種加算 ===== */}
-        <SectionCard title="各種加算">
-
-          {/* 難病等複数回訪問加算 */}
-          <CheckRow
-            id="multiple-visit"
-            label="難病等複数回訪問加算"
-            sublabel="1日に2回以上訪問した場合"
-            checked={input.multipleVisit}
-            onChange={(v) => update("multipleVisit", v)}
-            disabled={disabledFields.has("multipleVisit")}
-            disabledReason="包括型訪問看護療養費算定日は算定できません。"
-          >
-            <RadioGroup<MultipleVisitCount>
-              label="1日の訪問回数"
-              value={input.multipleVisitCount}
-              onChange={(v) => update("multipleVisitCount", v)}
-              options={[
-                { value: "twice", label: "1日2回" },
-                { value: "three_plus", label: "1日3回以上" },
-              ]}
-            />
-            {/* 3回以上かつ同一建物3人以上の場合は月の訪問日数が必要 */}
-            {input.multipleVisitCount === "three_plus" &&
-              input.isSameBuilding &&
-              ["3-9", "10-19", "20-49", "50+"].includes(
-                input.buildingResidentCount
-              ) && (
-                <RadioGroup<"1-20" | "21+">
-                  label="月の訪問日数"
-                  value={input.multipleVisitMonthDay}
-                  onChange={(v) => update("multipleVisitMonthDay", v)}
-                  options={[
-                    { value: "1-20", label: "月20日目まで" },
-                    { value: "21+", label: "月21日目以降" },
-                  ]}
-                />
-              )}
-          </CheckRow>
-
-          <Separator className="my-1" />
-
-          {/* 24時間対応体制加算 */}
-          <CheckRow
-            id="h24-support"
-            label="24時間対応体制加算"
-            sublabel="月1回算定"
-            checked={input.h24Support}
-            onChange={(v) => update("h24Support", v)}
-            disabled={disabledFields.has("h24Support")}
-            disabledReason="包括型訪問看護療養費算定日は算定できません。"
-          >
-            <RadioGroup<"ika" | "ro">
-              label="区分"
-              value={input.h24SupportType}
-              onChange={(v) => update("h24SupportType", v)}
-              options={[
-                {
-                  value: "ika",
-                  label: "イ（負担軽減取組あり）",
-                  sublabel: "6,800円",
-                },
-                {
-                  value: "ro",
-                  label: "ロ（通常）",
-                  sublabel: "6,520円",
-                },
-              ]}
-              tooltip="イ：看護業務の負担軽減の取組を行っている場合（別途届出が必要）"
-            />
-          </CheckRow>
-
-          <Separator className="my-1" />
-
-          {/* 特別管理加算 */}
-          <CheckRow
-            id="special-management"
-            label="特別管理加算"
-            sublabel="月1回算定"
-            checked={input.specialManagement}
-            onChange={(v) => update("specialManagement", v)}
-          >
-            <RadioGroup<SpecialManagementType>
-              label="区分"
-              value={input.specialManagementType}
-              onChange={(v) => update("specialManagementType", v)}
-              options={[
-                {
-                  value: "type1",
-                  label: "（1）重症度の高い者",
-                  sublabel: "5,000円（人工呼吸器等）",
-                },
-                {
-                  value: "type2",
-                  label: "（2）特別な管理が必要な者",
-                  sublabel: "2,500円（カテーテル管理等）",
-                },
-              ]}
-              tooltip="（1）：人工呼吸器・気管切開・ドレーン管理・在宅中心静脈栄養等の重症度の高い者　（2）：留置カテーテル・在宅酸素療法等の特別な管理が必要な者"
-            />
-          </CheckRow>
-
-          <Separator className="my-1" />
-
-          {/* 訪問看護情報提供療養費 */}
-          <CheckRow
-            id="info-provision"
-            label="訪問看護情報提供療養費"
-            sublabel="1,500円 / 月1回"
-            checked={input.infoProvision}
-            onChange={(v) => update("infoProvision", v)}
-          >
-            <RadioGroup<InfoProvisionType>
-              label="区分"
-              value={input.infoProvisionType}
-              onChange={(v) => update("infoProvisionType", v)}
-              options={[
-                { value: "type1", label: "1（市町村等）" },
-                { value: "type2", label: "2（学校等）" },
-                { value: "type3", label: "3（保険医療機関）" },
-              ]}
-            />
-          </CheckRow>
-
-          <Separator className="my-1" />
-
-          {/* ターミナルケア療養費 */}
-          <CheckRow
-            id="terminal-care"
-            label="訪問看護ターミナルケア療養費"
-            sublabel="死亡月に算定"
-            checked={input.terminalCare}
-            onChange={(v) => update("terminalCare", v)}
-          >
-            <RadioGroup<TerminalCareType>
-              label="区分"
-              value={input.terminalCareType}
-              onChange={(v) => update("terminalCareType", v)}
-              options={[
-                {
-                  value: "type1",
-                  label: "1（在宅・特養等）",
-                  sublabel: "25,000円",
-                },
-                {
-                  value: "type2",
-                  label: "2（特養等・看取り介護加算算定）",
-                  sublabel: "10,000円",
-                },
-              ]}
-              tooltip="1：在宅で死亡した利用者または特別養護老人ホーム等で死亡した利用者（看取り介護加算等を算定していない場合）　2：特別養護老人ホーム等で死亡した利用者（看取り介護加算等を算定している場合）"
-            />
-          </CheckRow>
-
-          <Separator className="my-1" />
-
-          {/* 複数名訪問加算 */}
-          <CheckRow
-            id="co-visit"
-            label="複数名訪問加算"
-            sublabel="複数の看護師等が同時訪問"
-            checked={input.coVisit}
-            onChange={(v) => update("coVisit", v)}
-            disabled={disabledFields.has("coVisit")}
-            disabledReason="包括型訪問看護療養費算定日は算定できません。"
-          >
-            <RadioGroup<CoVisitStaffType>
-              label="同行職種"
-              value={input.coVisitStaffType}
-              onChange={(v) => update("coVisitStaffType", v)}
-              options={[
-                { value: "nurse", label: "看護師等", sublabel: "准看護師を除く" },
-                { value: "junkango", label: "准看護師" },
-                { value: "other", label: "その他職員", sublabel: "看護補助者等" },
-              ]}
-            />
-          </CheckRow>
-
-          <Separator className="my-1" />
-
-          {/* 早朝・夜間加算 / 深夜加算 */}
-          <div className={cn("space-y-2", isComprehensive && "opacity-40")}>
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm font-medium text-slate-700">時間帯加算</span>
-              {isComprehensive ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <XCircleIcon className="w-4 h-4 text-slate-400 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-[200px] text-xs">
-                    包括型訪問看護療養費算定日は算定できません。
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <InfoIcon className="w-3.5 h-3.5 text-slate-400 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-[240px] text-xs">
-                    早朝：6:00〜8:00 / 夜間：18:00〜22:00 / 深夜：22:00〜翌6:00
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {(["normal", "early_late", "midnight"] as TimeZone[]).map((tz) => {
-                const label =
-                  tz === "normal"
-                    ? "通常時間帯"
-                    : tz === "early_late"
-                    ? "早朝・夜間"
-                    : "深夜";
-                const sublabel =
-                  tz === "normal"
-                    ? ""
-                    : tz === "early_late"
-                    ? "6:00-8:00 / 18:00-22:00"
-                    : "22:00-翌6:00";
-                return (
-                  <button
-                    key={tz}
-                    type="button"
-                    onClick={() => !isComprehensive && update("timeZone", tz)}
-                    disabled={isComprehensive}
-                    className={cn(
-                      "px-3 py-1.5 rounded-md text-sm font-medium border transition-all duration-150 text-left",
-                      input.timeZone === tz
-                        ? "bg-sky-600 text-white border-sky-600 shadow-sm"
-                        : "bg-white text-slate-600 border-slate-200 hover:border-sky-400 hover:text-sky-600",
-                      isComprehensive && "cursor-not-allowed"
-                    )}
-                  >
-                    <span>{label}</span>
-                    {sublabel && (
-                      <span
-                        className={cn(
-                          "block text-xs mt-0.5",
-                          input.timeZone === tz ? "text-sky-100" : "text-slate-400"
-                        )}
-                      >
-                        {sublabel}
-                      </span>
-                    )}
-                  </button>
-                );
+          </div>
+        ) : (
+          <div className="p-4">
+            <CopayForm
+              input={visitDay.copayInput}
+              insuranceMode={visitDay.insuranceMode}
+              onChange={(updates) => store.updateVisitDay(dateStr, {
+                copayInput: { ...visitDay.copayInput, ...updates }
               })}
-            </div>
-            {input.timeZone !== "normal" && !isComprehensive && (
-              <div className="pl-3 border-l-2 border-sky-200">
-                <RadioGroup<"1-15" | "16+">
-                  label="月の訪問日数"
-                  value={input.timeZoneMonthDay}
-                  onChange={(v) => update("timeZoneMonthDay", v)}
-                  options={[
-                    { value: "1-15", label: "月15日以下" },
-                    { value: "16+", label: "月16日以上" },
-                  ]}
-                  tooltip="同一建物居住者が3人以上の場合に月の訪問日数で点数が変動します。"
-                />
-              </div>
-            )}
+            />
           </div>
-        </SectionCard>
-
-        {/* 注釈 */}
-        <div className="px-1">
-          <p className="text-xs text-slate-400 leading-relaxed">
-            ※ 本アプリは令和8年度診療報酬改定の算定ルールに基づいて計算を行います。
-            実際の算定にあたっては、各種届出要件・算定要件を必ずご確認ください。
-          </p>
-        </div>
+        )}
       </div>
 
-      {/* ===== 計算結果（固定フッター） ===== */}
-      <div className="fixed bottom-0 left-0 right-0 z-20">
-        <ResultPanel result={result} />
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// 計算結果パネル
-// ============================================================
-function ResultPanel({ result }: { result: CalcResult }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className="bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
-      {/* 展開時の内訳 */}
-      {expanded && (
-        <div className="max-w-2xl mx-auto px-4 pt-4 pb-2 max-h-[55vh] overflow-y-auto">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-1.5">
-            <CheckCircle2Icon className="w-4 h-4 text-sky-600" />
-            算定内訳
-          </h3>
-          <div className="space-y-0">
-            {result.items.map((item, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "flex items-start justify-between gap-2 py-2 border-b border-slate-100 last:border-0",
-                  item.disabled && "opacity-40"
-                )}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    {item.disabled && (
-                      <XCircleIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    )}
-                    <p className="text-sm text-slate-700 leading-snug">{item.label}</p>
-                  </div>
-                  {item.note && (
-                    <p className="text-xs text-slate-400 mt-0.5 ml-0">{item.note}</p>
-                  )}
-                </div>
-                <span
-                  className={cn(
-                    "text-sm font-semibold shrink-0 tabular-nums",
-                    item.disabled ? "text-slate-400 line-through" : "text-slate-800"
-                  )}
-                >
-                  {item.disabled ? "算定不可" : formatYen(item.amount)}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {result.warnings.length > 0 && (
-            <div className="mt-3 space-y-1.5">
-              {result.warnings.map((w, i) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-md"
-                >
-                  <AlertCircleIcon className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-700">{w}</p>
+      {/* 計算結果フッター */}
+      <div className="border-t border-stone-200 bg-stone-50 shrink-0">
+        <div className="px-4 py-3">
+          {/* 警告 */}
+          {warnings.length > 0 && (
+            <div className="mb-2 space-y-1">
+              {warnings.map((w, i) => (
+                <div key={i} className="flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 rounded p-2 border border-amber-200">
+                  <AlertCircleIcon className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>{w}</span>
                 </div>
               ))}
             </div>
           )}
-
-          <Separator className="mt-3 mb-2" />
-          <div className="flex items-center justify-between py-1.5">
-            <span className="text-sm font-semibold text-slate-700">合計</span>
-            <span className="text-xl font-bold text-sky-700 tabular-nums">
-              {formatYen(result.total)}
-            </span>
+          {/* 内訳 */}
+          <div className="space-y-1 mb-3">
+            {resultItems.map((item, i) => (
+              <div key={i} className={cn(
+                "flex items-center justify-between text-xs",
+                item.disabled ? "opacity-40 line-through" : ""
+              )}>
+                <span className="text-stone-600 flex-1 pr-2">{item.label}</span>
+                <span className={cn("font-medium shrink-0", item.disabled ? "text-stone-400" : "text-stone-800")}>
+                  {visitDay.insuranceMode === "care"
+                    ? `${item.amount.toLocaleString()}単位`
+                    : formatYen(item.amount)}
+                </span>
+              </div>
+            ))}
           </div>
-          <div className="flex items-center justify-between pb-1">
-            <span className="text-xs text-slate-400">参考点数（1点＝10円換算）</span>
-            <span className="text-xs text-slate-500 tabular-nums">
-              {Math.floor(result.total / 10).toLocaleString("ja-JP")} 点
-            </span>
+          <Separator className="my-2" />
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs text-stone-500">合計金額</div>
+              {visitDay.insuranceMode === "care" && (
+                <div className="text-xs text-stone-400">{total.toLocaleString()}単位 × {rateNum}円</div>
+              )}
+            </div>
+            <div className="text-right">
+              <div className="text-xl font-bold text-amber-700">{formatYen(totalYen)}</div>
+              {visitDay.insuranceMode === "medical" && (
+                <div className="text-xs text-stone-400">{Math.round(totalYen / 10)}点</div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* 合計表示バー */}
-      <div
-        className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between cursor-pointer"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="flex items-center gap-1.5 text-sm text-sky-600 font-medium"
-          >
-            {expanded ? (
-              <ChevronDownIcon className="w-4 h-4" />
-            ) : (
-              <ChevronUpIcon className="w-4 h-4" />
-            )}
-            {expanded
-              ? "内訳を閉じる"
-              : `内訳を見る（${result.items.filter((i) => !i.disabled).length}項目）`}
-          </button>
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-slate-500 leading-none mb-0.5">合計金額</p>
-          <p className="text-2xl font-bold text-sky-700 tabular-nums leading-none">
-            {formatYen(result.total)}
-          </p>
+          <div className="mt-2 flex items-center justify-between bg-amber-50 rounded-lg px-3 py-2 border border-amber-200">
+            <div>
+              <div className="text-xs text-stone-500">患者自己負担（概算）</div>
+              <div className="text-xs text-stone-400">{copayNote}</div>
+            </div>
+            <div className="text-lg font-bold text-amber-800">{formatYen(copayAmount)}</div>
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// 月次集計パネル
+// ============================================================
+interface MonthlySummaryPanelProps {
+  store: ReturnType<typeof useVisitStore>;
+  onSelectDate: (date: string) => void;
+}
+
+function MonthlySummaryPanel({ store, onSelectDate }: MonthlySummaryPanelProps) {
+  const [expanded, setExpanded] = useState(true);
+
+  const { monthlyResults, totalAmount, totalCopay, year, month } = store;
+
+  if (monthlyResults.length === 0) {
+    return (
+      <div className="text-center py-8 text-stone-400">
+        <CalendarDaysIcon className="w-10 h-10 mx-auto mb-2 opacity-30" />
+        <div className="text-sm">カレンダーで訪問日をタップして追加してください</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* 月次サマリー */}
+      <div className="bg-amber-600 rounded-xl p-4 text-white">
+        <div className="text-xs text-amber-100 mb-1">{year}年{month}月 月次合計</div>
+        <div className="flex items-end justify-between">
+          <div>
+            <div className="text-2xl font-bold">{formatYen(totalAmount)}</div>
+            <div className="text-xs text-amber-100 mt-0.5">{monthlyResults.length}回訪問</div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs text-amber-100">患者自己負担（概算）</div>
+            <div className="text-lg font-bold">{formatYen(totalCopay)}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* 訪問日一覧 */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-3 py-2 bg-stone-100 rounded-lg text-sm font-medium text-stone-700 hover:bg-stone-200 transition-colors"
+      >
+        <span>訪問日の内訳（{monthlyResults.length}件）</span>
+        {expanded ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
+      </button>
+
+      {expanded && (
+        <div className="space-y-2">
+          {monthlyResults.map((r) => {
+            const [y, m, d] = r.date.split("-").map(Number);
+            const weekdays = ["日","月","火","水","木","金","土"];
+            const dow = weekdays[new Date(y, m - 1, d).getDay()];
+            return (
+              <button
+                key={r.id}
+                onClick={() => onSelectDate(r.date)}
+                className="w-full flex items-center gap-3 p-3 bg-white rounded-lg border border-stone-200 hover:border-amber-300 hover:bg-amber-50 transition-all text-left"
+              >
+                <div className={cn(
+                  "w-10 h-10 rounded-lg flex flex-col items-center justify-center shrink-0 text-white",
+                  r.insuranceMode === "medical" ? "bg-amber-500" : "bg-teal-500"
+                )}>
+                  <span className="text-xs font-bold leading-none">{m}/{d}</span>
+                  <span className="text-xs opacity-80">{dow}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className={cn(
+                      "text-xs px-1.5 py-0.5 rounded font-medium",
+                      r.insuranceMode === "medical"
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-teal-100 text-teal-700"
+                    )}>
+                      {r.insuranceMode === "medical" ? "医療" : "介護"}
+                    </span>
+                  </div>
+                  <div className="text-xs text-stone-500 mt-0.5 truncate">
+                    {r.insuranceMode === "medical"
+                      ? r.medicalInput.mode === "comprehensive" ? "包括型" : "従来型"
+                      : `${r.careInput.providerType === "station" ? "ステーション" : "病院"}`}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="font-bold text-stone-800">{formatYen(r.totalYen)}</div>
+                  <div className="text-xs text-stone-400">負担 {formatYen(r.copayAmount)}</div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// 印刷プレビュー
+// ============================================================
+interface PrintPreviewProps {
+  store: ReturnType<typeof useVisitStore>;
+  onClose: () => void;
+}
+
+function PrintPreview({ store, onClose }: PrintPreviewProps) {
+  const { year, month, monthlyResults, totalAmount, totalCopay, patientName, stationName } = store;
+  const printDate = new Date().toLocaleDateString("ja-JP");
+
+  const handlePrint = () => window.print();
+
+  return (
+    <div id="print-root" className="fixed inset-0 z-50 bg-stone-800/80 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col print:shadow-none print:rounded-none print:max-h-none print:w-full print:max-w-none">
+        {/* ヘッダー */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200 shrink-0">
+          <h2 className="font-bold text-stone-800">印刷プレビュー</h2>
+          <div className="flex gap-2">
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors"
+            >
+              <PrinterIcon className="w-4 h-4" />
+              印刷する
+            </button>
+            <button onClick={onClose} className="p-2 rounded-lg hover:bg-stone-100 transition-colors">
+              <XIcon className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* プレビュー */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <div id="print-content" className="bg-white border border-stone-200 rounded-lg p-6 space-y-4 text-sm">
+            {/* タイトル */}
+            <div className="text-center border-b-2 border-stone-800 pb-3">
+              <h1 className="text-lg font-bold text-stone-900">訪問看護 料金概算のお知らせ</h1>
+              <p className="text-xs text-stone-500 mt-1">令和8年度（2026年度）診療報酬改定 準拠</p>
+            </div>
+
+            {/* 基本情報 */}
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              <div>
+                <span className="text-stone-500">ご利用者様：</span>
+                <span className="font-bold ml-1">{patientName || "　　　　　　　　　"} 様</span>
+              </div>
+              <div>
+                <span className="text-stone-500">算定月：</span>
+                <span className="font-bold ml-1">{year}年{month}月</span>
+              </div>
+              <div>
+                <span className="text-stone-500">事業所名：</span>
+                <span className="font-bold ml-1">{stationName || "　　　　　　　　　"}</span>
+              </div>
+              <div>
+                <span className="text-stone-500">発行日：</span>
+                <span className="font-bold ml-1">{printDate}</span>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* 月次サマリー */}
+            <div className="bg-stone-50 rounded-lg p-3">
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-stone-800">訪問回数</span>
+                <span className="font-bold">{monthlyResults.length}回</span>
+              </div>
+              <div className="flex justify-between items-center mt-1">
+                <span className="font-bold text-stone-800">合計金額（概算）</span>
+                <span className="font-bold text-base">{formatYen(totalAmount)}</span>
+              </div>
+              <div className="flex justify-between items-center mt-1 text-amber-700">
+                <span className="font-bold">患者様ご負担額（概算）</span>
+                <span className="font-bold text-base">{formatYen(totalCopay)}</span>
+              </div>
+            </div>
+
+            {/* 訪問日別内訳 */}
+            <div>
+              <h3 className="font-bold text-stone-800 mb-2">訪問日別内訳</h3>
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-stone-100">
+                    <th className="border border-stone-300 px-2 py-1.5 text-left font-bold">訪問日</th>
+                    <th className="border border-stone-300 px-2 py-1.5 text-left font-bold">保険</th>
+                    <th className="border border-stone-300 px-2 py-1.5 text-right font-bold">金額</th>
+                    <th className="border border-stone-300 px-2 py-1.5 text-right font-bold">ご負担額</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthlyResults.map((r) => {
+                    const [y, m, d] = r.date.split("-").map(Number);
+                    const weekdays = ["日","月","火","水","木","金","土"];
+                    const dow = weekdays[new Date(y, m - 1, d).getDay()];
+                    return (
+                      <tr key={r.id} className="hover:bg-stone-50">
+                        <td className="border border-stone-300 px-2 py-1.5">{m}/{d}（{dow}）</td>
+                        <td className="border border-stone-300 px-2 py-1.5">
+                          {r.insuranceMode === "medical" ? "医療保険" : "介護保険"}
+                        </td>
+                        <td className="border border-stone-300 px-2 py-1.5 text-right font-medium">{formatYen(r.totalYen)}</td>
+                        <td className="border border-stone-300 px-2 py-1.5 text-right font-medium">{formatYen(r.copayAmount)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-stone-100 font-bold">
+                    <td colSpan={2} className="border border-stone-300 px-2 py-1.5">合計</td>
+                    <td className="border border-stone-300 px-2 py-1.5 text-right">{formatYen(totalAmount)}</td>
+                    <td className="border border-stone-300 px-2 py-1.5 text-right">{formatYen(totalCopay)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* 注意書き */}
+            <div className="text-xs text-stone-500 border border-stone-200 rounded p-3 space-y-1">
+              <p className="font-bold text-stone-700">【ご注意】</p>
+              <p>・本書は概算であり、実際の請求額と異なる場合があります。</p>
+              <p>・患者様ご負担額は高額療養費制度等の適用前の概算です。</p>
+              <p>・公費負担医療の月額上限額は、他の医療機関・薬局との合算で管理されます。</p>
+              <p>・令和8年度（2026年度）診療報酬改定・令和6年度介護報酬改定に基づき算定しています。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 印刷用スタイル */}
+      <style>{`
+        @media print {
+          body > *:not(#print-root) { display: none !important; }
+          #print-root { background: white !important; position: static !important; display: block !important; padding: 0 !important; }
+          #print-root > div { box-shadow: none !important; border-radius: 0 !important; max-height: none !important; width: 100% !important; max-width: none !important; }
+          #print-root > div > div:first-child { display: none !important; }
+          #print-root > div > div:last-child { overflow: visible !important; padding: 0 !important; }
+          #print-content { border: none !important; padding: 12mm 15mm !important; box-shadow: none !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ============================================================
+// メインページ
+// ============================================================
+export default function Home() {
+  const store = useVisitStore();
+  const [showPrint, setShowPrint] = useState(false);
+  const [activeMainTab, setActiveMainTab] = useState<"calendar" | "summary">("calendar");
+
+  const visitDates = useMemo(
+    () => new Set(store.currentMonthVisits.map((v) => v.date)),
+    [store.currentMonthVisits]
+  );
+
+  const selectedVisitDay = store.selectedDate ? store.getVisitDay(store.selectedDate) : null;
+
+  return (
+    <div className="min-h-screen bg-stone-50 flex flex-col max-w-lg mx-auto">
+      {/* ヘッダー */}
+      <header className="bg-white border-b border-stone-200 px-4 py-3 shrink-0 sticky top-0 z-30">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-base font-bold text-stone-900">訪問看護 料金計算</h1>
+            <p className="text-xs text-stone-400">令和8年度改定準拠</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {store.monthlyResults.length > 0 && (
+              <button
+                onClick={() => setShowPrint(true)}
+                className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-medium hover:bg-amber-100 transition-colors"
+              >
+                <PrinterIcon className="w-3.5 h-3.5" />
+                印刷
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 利用者・事業所名入力 */}
+        <div className="mt-2 flex gap-2">
+          <div className="flex items-center gap-1 flex-1 bg-stone-50 border border-stone-200 rounded-lg px-2 py-1.5">
+            <UserIcon className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+            <input
+              type="text"
+              placeholder="利用者名"
+              value={store.patientName}
+              onChange={(e) => store.setPatientName(e.target.value)}
+              className="flex-1 text-xs bg-transparent outline-none text-stone-700 placeholder:text-stone-300"
+            />
+          </div>
+          <div className="flex items-center gap-1 flex-1 bg-stone-50 border border-stone-200 rounded-lg px-2 py-1.5">
+            <BuildingIcon className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+            <input
+              type="text"
+              placeholder="事業所名"
+              value={store.stationName}
+              onChange={(e) => store.setStationName(e.target.value)}
+              className="flex-1 text-xs bg-transparent outline-none text-stone-700 placeholder:text-stone-300"
+            />
+          </div>
+        </div>
+      </header>
+
+      {/* 月ナビゲーション */}
+      <div className="bg-white border-b border-stone-200 px-4 py-2 flex items-center justify-between shrink-0">
+        <button
+          onClick={store.prevMonth}
+          className="p-2 rounded-lg hover:bg-stone-100 transition-colors"
+        >
+          <ChevronLeftIcon className="w-5 h-5 text-stone-600" />
+        </button>
+        <div className="text-center">
+          <div className="font-bold text-stone-900">{store.year}年{store.month}月</div>
+          {store.monthlyResults.length > 0 && (
+            <div className="text-xs text-amber-600 font-medium">
+              {store.monthlyResults.length}回 / {formatYen(store.totalAmount)}
+            </div>
+          )}
+        </div>
+        <button
+          onClick={store.nextMonth}
+          className="p-2 rounded-lg hover:bg-stone-100 transition-colors"
+        >
+          <ChevronRightIcon className="w-5 h-5 text-stone-600" />
+        </button>
+      </div>
+
+      {/* メインタブ */}
+      <div className="bg-white border-b border-stone-200 flex shrink-0">
+        <button
+          onClick={() => setActiveMainTab("calendar")}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors",
+            activeMainTab === "calendar"
+              ? "border-b-2 border-amber-600 text-amber-700"
+              : "text-stone-500 hover:text-stone-700"
+          )}
+        >
+          <CalendarDaysIcon className="w-4 h-4" />
+          カレンダー
+        </button>
+        <button
+          onClick={() => setActiveMainTab("summary")}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors",
+            activeMainTab === "summary"
+              ? "border-b-2 border-amber-600 text-amber-700"
+              : "text-stone-500 hover:text-stone-700"
+          )}
+        >
+          <ClipboardListIcon className="w-4 h-4" />
+          月次集計
+          {store.monthlyResults.length > 0 && (
+            <span className="bg-amber-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+              {store.monthlyResults.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* コンテンツ */}
+      <div className="flex-1 overflow-y-auto">
+        {activeMainTab === "calendar" ? (
+          <div className="p-4 space-y-4">
+            {/* デフォルト保険種別 */}
+            <div className="bg-white rounded-xl border border-stone-200 p-3">
+              <div className="text-xs text-stone-500 mb-2">新規訪問日のデフォルト保険種別</div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => store.setGlobalInsuranceMode("medical")}
+                  className={cn(
+                    "flex-1 py-2 rounded-lg text-sm font-bold transition-all",
+                    store.globalInsuranceMode === "medical"
+                      ? "bg-amber-600 text-white shadow-sm"
+                      : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                  )}
+                >医療保険</button>
+                <button
+                  onClick={() => store.setGlobalInsuranceMode("care")}
+                  className={cn(
+                    "flex-1 py-2 rounded-lg text-sm font-bold transition-all",
+                    store.globalInsuranceMode === "care"
+                      ? "bg-teal-600 text-white shadow-sm"
+                      : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                  )}
+                >介護保険</button>
+              </div>
+            </div>
+
+            {/* カレンダー */}
+            <div className="bg-white rounded-xl border border-stone-200 p-4">
+              <Calendar
+                year={store.year}
+                month={store.month}
+                visitDates={visitDates}
+                selectedDate={store.selectedDate}
+                onToggle={store.toggleVisitDay}
+                onSelect={store.setSelectedDate}
+              />
+            </div>
+
+            {/* 選択日のクイック情報 */}
+            {store.selectedDate && selectedVisitDay && (
+              <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">
+                <div className="bg-amber-50 px-4 py-2 flex items-center justify-between">
+                  <span className="text-sm font-bold text-amber-800">
+                    {store.selectedDate.split("-").slice(1).join("/")} の算定
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        store.toggleVisitDay(store.selectedDate!);
+                        store.setSelectedDate(null);
+                      }}
+                      className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                    >
+                      削除
+                    </button>
+                    <button
+                      onClick={() => store.setSelectedDate(store.selectedDate)}
+                      className="text-xs text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-lg font-medium transition-colors"
+                    >
+                      詳細設定 →
+                    </button>
+                  </div>
+                </div>
+                <div className="px-4 py-3">
+                  <div className="flex items-center justify-between">
+                    <span className={cn(
+                      "text-xs px-2 py-0.5 rounded font-medium",
+                      selectedVisitDay.insuranceMode === "medical"
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-teal-100 text-teal-700"
+                    )}>
+                      {selectedVisitDay.insuranceMode === "medical" ? "医療保険" : "介護保険"}
+                    </span>
+                    <span className="font-bold text-stone-800">
+                      {(() => {
+                        const r = store.monthlyResults.find(r => r.date === store.selectedDate);
+                        return r ? formatYen(r.totalYen) : "—";
+                      })()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 凡例 */}
+            <div className="flex items-center gap-4 text-xs text-stone-500 justify-center">
+              <div className="flex items-center gap-1">
+                <div className="w-4 h-4 rounded bg-amber-100 border border-amber-300" />
+                <span>訪問日</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-4 h-4 rounded border-2 border-amber-400" />
+                <span>今日</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="p-4">
+            <MonthlySummaryPanel
+              store={store}
+              onSelectDate={(date) => {
+                store.setSelectedDate(date);
+                setActiveMainTab("calendar");
+              }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* 訪問日詳細パネル（フルスクリーンオーバーレイ） */}
+      {store.selectedDate && selectedVisitDay && (
+        <VisitDetailPanel
+          dateStr={store.selectedDate}
+          store={store}
+          onClose={() => store.setSelectedDate(null)}
+        />
+      )}
+
+      {/* 印刷プレビュー */}
+      {showPrint && (
+        <PrintPreview store={store} onClose={() => setShowPrint(false)} />
+      )}
     </div>
   );
 }
