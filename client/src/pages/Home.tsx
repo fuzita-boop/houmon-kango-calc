@@ -43,6 +43,7 @@ import {
   SparklesIcon,
   InfoIcon,
   FileTextIcon,
+  CheckIcon,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -276,8 +277,8 @@ function VisitDetailPanel({ dateStr, store, onClose }: VisitDetailPanelProps) {
     <div className="fixed inset-0 z-50 flex flex-col bg-white">
       {/* ヘッダー */}
       <div className={cn("text-white px-4 py-3 flex items-center gap-3 shrink-0", modeConf.color)}>
-        <button onClick={onClose} className="p-1 rounded-full hover:bg-white/20 transition-colors">
-          <XIcon className="w-5 h-5" />
+        <button onClick={onClose} className="p-1 rounded-full hover:bg-white/20 transition-colors flex items-center gap-1">
+          <ChevronLeftIcon className="w-5 h-5" />
         </button>
         <div className="flex-1">
           <div className="font-bold text-base">{dateLabel}（{dow}）</div>
@@ -423,27 +424,28 @@ function VisitDetailPanel({ dateStr, store, onClose }: VisitDetailPanelProps) {
         )}
       </div>
 
-      {/* 計算結果フッター */}
+      {/* 計算結果フッター（常に画面下部に固定） */}
       <div className="border-t border-stone-200 bg-stone-50 shrink-0">
-        <div className="px-4 py-3">
-          {warnings.length > 0 && (
-            <div className="mb-2 space-y-1">
-              {warnings.map((w, i) => (
-                <div key={i} className="flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 rounded p-2 border border-amber-200">
-                  <AlertCircleIcon className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  <span>{w}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="space-y-1 mb-3">
+        {/* 計算明細 */}
+        {warnings.length > 0 && (
+          <div className="px-4 pt-2 space-y-1">
+            {warnings.map((w, i) => (
+              <div key={i} className="flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 rounded p-2 border border-amber-200">
+                <AlertCircleIcon className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>{w}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="px-4 pt-2 pb-1">
+          <div className="space-y-0.5">
             {resultItems.map((item, i) => (
               <div key={i} className={cn(
                 "flex items-center justify-between text-xs",
                 item.disabled ? "opacity-40 line-through" : ""
               )}>
-                <span className="text-stone-600 flex-1 pr-2">{item.label}</span>
-                <span className={cn("font-medium shrink-0", item.disabled ? "text-stone-400" : "text-stone-800")}>
+                <span className="text-stone-500 flex-1 pr-2 truncate">{item.label}</span>
+                <span className={cn("font-medium shrink-0", item.disabled ? "text-stone-400" : "text-stone-700")}>
                   {isUnitBased
                     ? `${item.amount.toLocaleString()}単位`
                     : formatYen(item.amount)}
@@ -451,26 +453,39 @@ function VisitDetailPanel({ dateStr, store, onClose }: VisitDetailPanelProps) {
               </div>
             ))}
           </div>
-          <Separator className="my-2" />
-          <div className="flex items-center justify-between">
+        </div>
+        {/* 合計行 + 入力完了ボタン */}
+        <div className="px-4 pb-4 pt-1">
+          <div className="flex items-center justify-between mb-1">
             <div>
-              <div className="text-xs text-stone-500">合計金額</div>
+              <span className="text-xs text-stone-500">合計金額</span>
               {isUnitBased && (
-                <div className="text-xs text-stone-400">{total.toLocaleString()}単位 × {rateNum}円</div>
+                <span className="text-xs text-stone-400 ml-1">{total.toLocaleString()}単位×{rateNum}円</span>
               )}
               {mode === "medical" && (
-                <div className="text-xs text-stone-400">{Math.round(totalYen / 10)}点</div>
+                <span className="text-xs text-stone-400 ml-1">{Math.round(totalYen / 10)}点</span>
               )}
             </div>
             <div className="text-xl font-bold text-amber-700">{formatYen(totalYen)}</div>
           </div>
-          <div className="mt-2 flex items-center justify-between bg-amber-50 rounded-lg px-3 py-2 border border-amber-200">
+          <div className="flex items-center justify-between bg-amber-50 rounded-lg px-3 py-1.5 border border-amber-200 mb-3">
             <div>
               <div className="text-xs text-stone-500">患者自己負担（概算）</div>
               <div className="text-xs text-stone-400 leading-tight">{copayNote}</div>
             </div>
-            <div className="text-lg font-bold text-amber-800">{formatYen(copayAmount)}</div>
+            <div className="text-base font-bold text-amber-800">{formatYen(copayAmount)}</div>
           </div>
+          {/* 入力完了ボタン */}
+          <button
+            onClick={onClose}
+            className={cn(
+              "w-full py-3.5 rounded-xl font-bold text-white text-base flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all",
+              modeConf.color
+            )}
+          >
+            <CheckIcon className="w-5 h-5" />
+            入力完了
+          </button>
         </div>
       </div>
     </div>
