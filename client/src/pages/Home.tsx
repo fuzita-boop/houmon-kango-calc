@@ -2,9 +2,11 @@
  * 訪問看護療養費計算アプリ - メインページ
  * Design: ウォームアンバー・プロフェッショナル
  * - テラコッタ/アンバーオレンジをプライマリカラー
- * - カレンダーで訪問日を選択して月次集計
+ * - ウィザード形式: 保険種別選択 → 算定条件 → 負担割合 → 完了
+ * - カレンダーで訪問日を選択、タップ順に初回・2回目・3回目と自動カウント
+ * - 訪問日が1件以上で月次集計ボタンを表示
  * - 医療保険・介護保険・介護予防・精神科訪問看護の4種対応
- * - 患者負担額計算・自立支援医療月額上限管理・印刷機能付き
+ * - 処遇改善加算（介護保険）・ベースアップ評価料（医療保険）対応
  */
 
 import { useState, useMemo } from "react";
@@ -20,6 +22,7 @@ import {
   calcSeishinCopayWithTracker,
   formatYen,
   CARE_REGION_OPTIONS,
+  calcShoguKaizenKasan,
 } from "@/lib/calcEngine";
 import MedicalForm from "@/components/MedicalForm";
 import CareForm from "@/components/CareForm";
@@ -44,6 +47,11 @@ import {
   InfoIcon,
   FileTextIcon,
   CheckIcon,
+  ArrowRightIcon,
+  HeartPulseIcon,
+  BriefcaseMedicalIcon,
+  ShieldIcon,
+  BrainIcon,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -52,7 +60,10 @@ import { Badge } from "@/components/ui/badge";
 // 保険種別のカラー・ラベル定義
 // ============================================================
 
-const MODE_CONFIG: Record<InsuranceMode, { label: string; shortLabel: string; color: string; bgColor: string; borderColor: string; badgeBg: string; badgeText: string }> = {
+const MODE_CONFIG: Record<InsuranceMode, {
+  label: string; shortLabel: string; color: string; bgColor: string;
+  borderColor: string; badgeBg: string; badgeText: string; icon: React.ReactNode;
+}> = {
   medical: {
     label: "医療保険",
     shortLabel: "医療",
@@ -61,6 +72,7 @@ const MODE_CONFIG: Record<InsuranceMode, { label: string; shortLabel: string; co
     borderColor: "border-amber-200",
     badgeBg: "bg-amber-100",
     badgeText: "text-amber-700",
+    icon: <HeartPulseIcon className="w-6 h-6" />,
   },
   care: {
     label: "介護保険",
@@ -70,6 +82,7 @@ const MODE_CONFIG: Record<InsuranceMode, { label: string; shortLabel: string; co
     borderColor: "border-teal-200",
     badgeBg: "bg-teal-100",
     badgeText: "text-teal-700",
+    icon: <BriefcaseMedicalIcon className="w-6 h-6" />,
   },
   preventive: {
     label: "介護予防",
@@ -79,6 +92,7 @@ const MODE_CONFIG: Record<InsuranceMode, { label: string; shortLabel: string; co
     borderColor: "border-emerald-200",
     badgeBg: "bg-emerald-100",
     badgeText: "text-emerald-700",
+    icon: <ShieldIcon className="w-6 h-6" />,
   },
   psychiatric: {
     label: "精神科",
@@ -88,6 +102,7 @@ const MODE_CONFIG: Record<InsuranceMode, { label: string; shortLabel: string; co
     borderColor: "border-purple-200",
     badgeBg: "bg-purple-100",
     badgeText: "text-purple-700",
+    icon: <BrainIcon className="w-6 h-6" />,
   },
 };
 
@@ -97,17 +112,23 @@ const MODE_CONFIG: Record<InsuranceMode, { label: string; shortLabel: string; co
 interface CalendarProps {
   year: number;
   month: number;
-  visitDates: Set<string>;
+  visitDays: Array<{ date: string; insuranceMode: InsuranceMode }>;
   selectedDate: string | null;
-  firstVisitDate: string | null;
   onToggle: (date: string) => void;
   onSelect: (date: string) => void;
 }
 
-function Calendar({ year, month, visitDates, selectedDate, firstVisitDate, onToggle, onSelect }: CalendarProps) {
+function Calendar({ year, month, visitDays, selectedDate, onToggle, onSelect }: CalendarProps) {
   const firstDay = new Date(year, month - 1, 1).getDay();
   const daysInMonth = new Date(year, month, 0).getDate();
   const today = new Date().toISOString().split("T")[0];
+
+  // 訪問日をdateでインデックス化（何回目か）
+  const sortedVisits = [...visitDays].sort((a, b) => a.date.localeCompare(b.date));
+  const visitIndexMap = new Map<string, number>();
+  sortedVisits.forEach((v, i) => visitIndexMap.set(v.date, i + 1));
+  const visitModeMap = new Map<string, InsuranceMode>();
+  visitDays.forEach(v => visitModeMap.set(v.date, v.insuranceMode));
 
   const cells: (number | null)[] = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
@@ -117,6 +138,8 @@ function Calendar({ year, month, visitDates, selectedDate, firstVisitDate, onTog
   for (let i = 0; i < cells.length; i += 7) {
     weeks.push(cells.slice(i, i + 7));
   }
+
+  const visitCountLabels = ["初","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩"];
 
   return (
     <div className="w-full">
@@ -134,11 +157,14 @@ function Calendar({ year, month, visitDates, selectedDate, firstVisitDate, onTog
             {week.map((day, di) => {
               if (!day) return <div key={di} />;
               const dateStr = `${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-              const isVisit = visitDates.has(dateStr);
+              const visitIndex = visitIndexMap.get(dateStr);
+              const isVisit = visitIndex !== undefined;
               const isSelected = selectedDate === dateStr;
               const isToday = dateStr === today;
-              const isFirst = firstVisitDate === dateStr;
               const dayOfWeek = (firstDay + (day - 1)) % 7;
+              const visitMode = visitModeMap.get(dateStr);
+              const modeConf = visitMode ? MODE_CONFIG[visitMode] : null;
+
               return (
                 <button
                   key={di}
@@ -159,10 +185,8 @@ function Calendar({ year, month, visitDates, selectedDate, firstVisitDate, onTog
                     "relative aspect-square flex flex-col items-center justify-center rounded-lg text-sm font-medium transition-all duration-150 select-none",
                     isSelected && isVisit
                       ? "bg-amber-600 text-white shadow-md ring-2 ring-amber-400 ring-offset-1"
-                      : isFirst
-                      ? "bg-amber-500 text-white border-2 border-amber-600 shadow-sm hover:bg-amber-600"
-                      : isVisit
-                      ? "bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200"
+                      : isVisit && modeConf
+                      ? `${modeConf.color} text-white shadow-sm`
                       : isToday
                       ? "border-2 border-amber-400 text-amber-700 hover:bg-amber-50"
                       : "hover:bg-stone-100 text-stone-700",
@@ -170,12 +194,11 @@ function Calendar({ year, month, visitDates, selectedDate, firstVisitDate, onTog
                     dayOfWeek === 6 && !isVisit && !isSelected && "text-blue-500",
                   )}
                 >
-                  <span>{day}</span>
-                  {isFirst && (
-                    <span className="absolute top-0.5 right-0.5 text-[8px] font-bold bg-red-500 text-white rounded-full w-3.5 h-3.5 flex items-center justify-center leading-none">初</span>
-                  )}
-                  {isVisit && !isFirst && (
-                    <span className="absolute bottom-0.5 w-1 h-1 rounded-full bg-amber-500" />
+                  <span className="text-xs leading-none">{day}</span>
+                  {isVisit && visitIndex !== undefined && (
+                    <span className="text-[9px] font-bold leading-none mt-0.5 opacity-90">
+                      {visitCountLabels[visitIndex - 1] ?? `${visitIndex}`}
+                    </span>
                   )}
                 </button>
               );
@@ -184,24 +207,27 @@ function Calendar({ year, month, visitDates, selectedDate, firstVisitDate, onTog
         ))}
       </div>
       <div className="mt-2 text-xs text-stone-400 text-center">
-        タップで訪問日を追加 / 長押しで削除
+        タップで訪問日追加 / 長押しで削除
       </div>
     </div>
   );
 }
 
 // ============================================================
-// 訪問日詳細パネル
+// ウィザード形式 訪問日詳細パネル
 // ============================================================
+type WizardStep = "mode" | "calc" | "copay";
+
 interface VisitDetailPanelProps {
   dateStr: string;
   store: ReturnType<typeof useVisitStore>;
   onClose: () => void;
+  visitIndex: number; // 月内何回目か
 }
 
-function VisitDetailPanel({ dateStr, store, onClose }: VisitDetailPanelProps) {
+function VisitDetailPanel({ dateStr, store, onClose, visitIndex }: VisitDetailPanelProps) {
   const visitDay = store.getVisitDay(dateStr);
-  const [activeTab, setActiveTab] = useState<"calc" | "copay">("calc");
+  const [wizardStep, setWizardStep] = useState<WizardStep>("mode");
   const [showAutoCopyBanner, setShowAutoCopyBanner] = useState(visitDay?.wasAutoCopied ?? false);
 
   if (!visitDay) return null;
@@ -273,20 +299,66 @@ function VisitDetailPanel({ dateStr, store, onClose }: VisitDetailPanelProps) {
     mode === "care" ? visitDay.careInput.regionRate : visitDay.preventiveCareInput.regionRate
   );
 
+  const visitCountLabels = ["初回","2回目","3回目","4回目","5回目","6回目","7回目","8回目","9回目","10回目"];
+  const visitLabel = visitCountLabels[visitIndex - 1] ?? `${visitIndex}回目`;
+
+  // ウィザードのステップラベル
+  const steps: { key: WizardStep; label: string }[] = [
+    { key: "mode", label: "種別" },
+    { key: "calc", label: "算定条件" },
+    { key: "copay", label: "負担割合" },
+  ];
+
+  const stepIndex = steps.findIndex(s => s.key === wizardStep);
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-white">
+    <div className="fixed inset-0 z-50 flex flex-col bg-white overflow-hidden" style={{height: '100dvh'}}>
       {/* ヘッダー */}
       <div className={cn("text-white px-4 py-3 flex items-center gap-3 shrink-0", modeConf.color)}>
-        <button onClick={onClose} className="p-1 rounded-full hover:bg-white/20 transition-colors flex items-center gap-1">
+        <button onClick={onClose} className="p-1 rounded-full hover:bg-white/20 transition-colors">
           <ChevronLeftIcon className="w-5 h-5" />
         </button>
         <div className="flex-1">
           <div className="font-bold text-base">{dateLabel}（{dow}）</div>
-          <div className="text-xs text-white/70">訪問算定条件の設定</div>
+          <div className="text-xs text-white/70">{visitLabel} · {modeConf.label}</div>
         </div>
         <div className="text-right">
           <div className="text-xs text-white/70">合計</div>
           <div className="font-bold text-lg">{formatYen(totalYen)}</div>
+        </div>
+      </div>
+
+      {/* ウィザードステップインジケーター */}
+      <div className="bg-stone-50 border-b border-stone-200 px-4 py-2 shrink-0">
+        <div className="flex items-center justify-center gap-2">
+          {steps.map((step, i) => (
+            <div key={step.key} className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  // 前のステップには戻れる
+                  if (i <= stepIndex) setWizardStep(step.key);
+                }}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all",
+                  wizardStep === step.key
+                    ? `${modeConf.color} text-white shadow-sm`
+                    : i < stepIndex
+                    ? "bg-stone-200 text-stone-600 hover:bg-stone-300"
+                    : "bg-stone-100 text-stone-400"
+                )}
+              >
+                {i < stepIndex ? (
+                  <CheckIcon className="w-3 h-3" />
+                ) : (
+                  <span className="w-3 h-3 flex items-center justify-center font-bold">{i + 1}</span>
+                )}
+                {step.label}
+              </button>
+              {i < steps.length - 1 && (
+                <ArrowRightIcon className="w-3 h-3 text-stone-300" />
+              )}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -296,7 +368,7 @@ function VisitDetailPanel({ dateStr, store, onClose }: VisitDetailPanelProps) {
           <div className="flex items-center gap-2">
             <SparklesIcon className="w-4 h-4 text-green-600 shrink-0" />
             <span className="text-xs text-green-700 font-medium">
-              前回の訪問条件を自動引き継ぎしました
+              前回の訪問条件を自動引き継ぎ
               <span className="text-green-500 font-normal ml-1">（月1回加算は自動でOFF）</span>
             </span>
           </div>
@@ -306,59 +378,58 @@ function VisitDetailPanel({ dateStr, store, onClose }: VisitDetailPanelProps) {
         </div>
       )}
 
-      {/* 保険種別切替 */}
-      <div className="bg-stone-50 border-b border-stone-200 px-3 py-2 shrink-0">
-        <div className="grid grid-cols-4 gap-1">
-          {(["medical", "care", "preventive", "psychiatric"] as InsuranceMode[]).map((m) => {
-            const conf = MODE_CONFIG[m];
-            const isActive = visitDay.insuranceMode === m;
-            return (
-              <button
-                key={m}
-                onClick={() => store.updateVisitDay(dateStr, { insuranceMode: m })}
-                className={cn(
-                  "py-2 rounded-lg text-xs font-bold transition-all",
-                  isActive ? `${conf.color} text-white shadow-sm` : "bg-white text-stone-600 border border-stone-200 hover:border-stone-400"
-                )}
-              >
-                {conf.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* タブ */}
-      <div className="border-b border-stone-200 flex shrink-0">
-        <button
-          onClick={() => setActiveTab("calc")}
-          className={cn(
-            "flex-1 py-2.5 text-sm font-medium transition-colors",
-            activeTab === "calc" ? "border-b-2 border-amber-600 text-amber-700" : "text-stone-500 hover:text-stone-700"
-          )}
-        >算定条件</button>
-        <button
-          onClick={() => setActiveTab("copay")}
-          className={cn(
-            "flex-1 py-2.5 text-sm font-medium transition-colors",
-            activeTab === "copay" ? "border-b-2 border-amber-600 text-amber-700" : "text-stone-500 hover:text-stone-700"
-          )}
-        >患者負担</button>
-        <button
-          onClick={() => {
-            store.copyPrevConditions(dateStr);
-            setShowAutoCopyBanner(true);
-          }}
-          title="前回の訪問条件をコピー"
-          className="px-3 py-2.5 text-stone-400 hover:text-amber-600 hover:bg-amber-50 transition-colors border-l border-stone-200"
-        >
-          <CopyIcon className="w-4 h-4" />
-        </button>
-      </div>
-
       {/* コンテンツ */}
       <div className="flex-1 overflow-y-auto">
-        {activeTab === "calc" ? (
+        {/* ステップ1: 保険種別選択 */}
+        {wizardStep === "mode" && (
+          <div className="p-4 space-y-4">
+            <div className="text-center">
+              <p className="text-sm font-bold text-stone-700">保険種別を選択してください</p>
+              <p className="text-xs text-stone-400 mt-1">{dateLabel}（{dow}）の訪問</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {(["medical", "care", "preventive", "psychiatric"] as InsuranceMode[]).map((m) => {
+                const conf = MODE_CONFIG[m];
+                const isActive = visitDay.insuranceMode === m;
+                return (
+                  <button
+                    key={m}
+                    onClick={() => store.updateVisitDay(dateStr, { insuranceMode: m })}
+                    className={cn(
+                      "flex flex-col items-center gap-2 py-5 rounded-xl font-bold text-sm transition-all border-2",
+                      isActive
+                        ? `${conf.color} text-white border-transparent shadow-lg scale-105`
+                        : `bg-white text-stone-600 border-stone-200 hover:border-stone-400 hover:bg-stone-50`
+                    )}
+                  >
+                    <span className={isActive ? "text-white" : "text-stone-400"}>
+                      {conf.icon}
+                    </span>
+                    {conf.label}
+                    {isActive && (
+                      <span className="text-xs font-normal text-white/80">選択中</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 前回コピーボタン */}
+            <button
+              onClick={() => {
+                store.copyPrevConditions(dateStr);
+                setShowAutoCopyBanner(true);
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-stone-100 text-stone-600 rounded-xl text-sm hover:bg-stone-200 transition-colors"
+            >
+              <CopyIcon className="w-4 h-4" />
+              前回の訪問条件をコピー
+            </button>
+          </div>
+        )}
+
+        {/* ステップ2: 算定条件入力 */}
+        {wizardStep === "calc" && (
           <div className="p-4">
             {visitDay.insuranceMode === "medical" && (
               <MedicalForm
@@ -393,9 +464,11 @@ function VisitDetailPanel({ dateStr, store, onClose }: VisitDetailPanelProps) {
               />
             )}
           </div>
-        ) : (
+        )}
+
+        {/* ステップ3: 患者負担割合 */}
+        {wizardStep === "copay" && (
           <div className="p-4 space-y-3">
-            {/* 患者負担の全日同期バナー */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex items-start gap-2">
               <InfoIcon className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
               <p className="text-xs text-blue-700">
@@ -426,66 +499,102 @@ function VisitDetailPanel({ dateStr, store, onClose }: VisitDetailPanelProps) {
 
       {/* 計算結果フッター（常に画面下部に固定） */}
       <div className="border-t border-stone-200 bg-stone-50 shrink-0">
-        {/* 計算明細 */}
-        {warnings.length > 0 && (
-          <div className="px-4 pt-2 space-y-1">
-            {warnings.map((w, i) => (
-              <div key={i} className="flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 rounded p-2 border border-amber-200">
-                <AlertCircleIcon className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                <span>{w}</span>
+        {/* 計算明細（算定条件・負担割合ステップのみ表示） */}
+        {(wizardStep === "calc" || wizardStep === "copay") && (
+          <>
+            {warnings.length > 0 && (
+              <div className="px-4 pt-2 space-y-1">
+                {warnings.map((w, i) => (
+                  <div key={i} className="flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 rounded p-2 border border-amber-200">
+                    <AlertCircleIcon className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>{w}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-        <div className="px-4 pt-2 pb-1">
-          <div className="space-y-0.5">
-            {resultItems.map((item, i) => (
-              <div key={i} className={cn(
-                "flex items-center justify-between text-xs",
-                item.disabled ? "opacity-40 line-through" : ""
-              )}>
-                <span className="text-stone-500 flex-1 pr-2 truncate">{item.label}</span>
-                <span className={cn("font-medium shrink-0", item.disabled ? "text-stone-400" : "text-stone-700")}>
-                  {isUnitBased
-                    ? `${item.amount.toLocaleString()}単位`
-                    : formatYen(item.amount)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-        {/* 合計行 + 入力完了ボタン */}
-        <div className="px-4 pb-4 pt-1">
-          <div className="flex items-center justify-between mb-1">
-            <div>
-              <span className="text-xs text-stone-500">合計金額</span>
-              {isUnitBased && (
-                <span className="text-xs text-stone-400 ml-1">{total.toLocaleString()}単位×{rateNum}円</span>
-              )}
-              {mode === "medical" && (
-                <span className="text-xs text-stone-400 ml-1">{Math.round(totalYen / 10)}点</span>
-              )}
-            </div>
-            <div className="text-xl font-bold text-amber-700">{formatYen(totalYen)}</div>
-          </div>
-          <div className="flex items-center justify-between bg-amber-50 rounded-lg px-3 py-1.5 border border-amber-200 mb-3">
-            <div>
-              <div className="text-xs text-stone-500">患者自己負担（概算）</div>
-              <div className="text-xs text-stone-400 leading-tight">{copayNote}</div>
-            </div>
-            <div className="text-base font-bold text-amber-800">{formatYen(copayAmount)}</div>
-          </div>
-          {/* 入力完了ボタン */}
-          <button
-            onClick={onClose}
-            className={cn(
-              "w-full py-3.5 rounded-xl font-bold text-white text-base flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all",
-              modeConf.color
             )}
-          >
-            <CheckIcon className="w-5 h-5" />
-            入力完了
-          </button>
+            <div className="px-4 pt-2 pb-1">
+              <div className="space-y-0.5 max-h-24 overflow-y-auto">
+                {resultItems.map((item, i) => (
+                  <div key={i} className={cn(
+                    "flex items-center justify-between text-xs",
+                    item.disabled ? "opacity-40 line-through" : ""
+                  )}>
+                    <span className="text-stone-500 flex-1 pr-2 truncate">{item.label}</span>
+                    <span className={cn("font-medium shrink-0", item.disabled ? "text-stone-400" : "text-stone-700")}>
+                      {isUnitBased
+                        ? `${item.amount.toLocaleString()}単位`
+                        : formatYen(item.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* 合計行 + ナビゲーションボタン */}
+        <div className="px-4 pb-4 pt-1">
+          {(wizardStep === "calc" || wizardStep === "copay") && (
+            <>
+              <div className="flex items-center justify-between mb-1">
+                <div>
+                  <span className="text-xs text-stone-500">合計金額</span>
+                  {isUnitBased && (
+                    <span className="text-xs text-stone-400 ml-1">{total.toLocaleString()}単位×{rateNum}円</span>
+                  )}
+                  {mode === "medical" && (
+                    <span className="text-xs text-stone-400 ml-1">{Math.round(totalYen / 10)}点</span>
+                  )}
+                </div>
+                <div className="text-xl font-bold text-amber-700">{formatYen(totalYen)}</div>
+              </div>
+              <div className="flex items-center justify-between bg-amber-50 rounded-lg px-3 py-1.5 border border-amber-200 mb-3">
+                <div>
+                  <div className="text-xs text-stone-500">患者自己負担（概算）</div>
+                  <div className="text-xs text-stone-400 leading-tight truncate max-w-[200px]">{copayNote}</div>
+                </div>
+                <div className="text-base font-bold text-amber-800">{formatYen(copayAmount)}</div>
+              </div>
+            </>
+          )}
+
+          {/* ボタン */}
+          {wizardStep === "mode" && (
+            <button
+              onClick={() => setWizardStep("calc")}
+              className={cn(
+                "w-full py-3.5 rounded-xl font-bold text-white text-base flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all",
+                modeConf.color
+              )}
+            >
+              次へ（算定条件の入力）
+              <ArrowRightIcon className="w-5 h-5" />
+            </button>
+          )}
+          {wizardStep === "calc" && (
+            <button
+              onClick={() => setWizardStep("copay")}
+              className={cn(
+                "w-full py-3.5 rounded-xl font-bold text-white text-base flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all",
+                modeConf.color
+              )}
+            >
+              次へ（負担割合の入力）
+              <ArrowRightIcon className="w-5 h-5" />
+            </button>
+          )}
+          {wizardStep === "copay" && (
+            <button
+              onClick={onClose}
+              className={cn(
+                "w-full py-3.5 rounded-xl font-bold text-white text-base flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all",
+                modeConf.color
+              )}
+            >
+              <CheckIcon className="w-5 h-5" />
+              入力完了
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -506,12 +615,15 @@ function MonthlySummaryPanel({ store, onSelectDate }: MonthlySummaryPanelProps) 
 
   if (monthlyResults.length === 0) {
     return (
-      <div className="text-center py-8 text-stone-400">
-        <CalendarDaysIcon className="w-10 h-10 mx-auto mb-2 opacity-30" />
-        <div className="text-sm">カレンダーで訪問日をタップして追加してください</div>
+      <div className="text-center py-12 text-stone-400">
+        <CalendarDaysIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
+        <div className="text-sm font-medium">訪問日がありません</div>
+        <div className="text-xs mt-1">カレンダーで訪問日をタップして追加してください</div>
       </div>
     );
   }
+
+  const visitCountLabels = ["初回","2回目","3回目","4回目","5回目","6回目","7回目","8回目","9回目","10回目"];
 
   return (
     <div className="space-y-3">
@@ -539,11 +651,12 @@ function MonthlySummaryPanel({ store, onSelectDate }: MonthlySummaryPanelProps) 
 
       {expanded && (
         <div className="space-y-2">
-          {monthlyResults.map((r) => {
+          {monthlyResults.map((r, idx) => {
             const [y, m, d] = r.date.split("-").map(Number);
             const weekdays = ["日","月","火","水","木","金","土"];
             const dow = weekdays[new Date(y, m - 1, d).getDay()];
             const conf = MODE_CONFIG[r.insuranceMode];
+            const visitLabel = visitCountLabels[idx] ?? `${idx + 1}回目`;
             return (
               <button
                 key={r.id}
@@ -551,7 +664,7 @@ function MonthlySummaryPanel({ store, onSelectDate }: MonthlySummaryPanelProps) 
                 className="w-full flex items-center gap-3 p-3 bg-white rounded-lg border border-stone-200 hover:border-amber-300 hover:bg-amber-50 transition-all text-left"
               >
                 <div className={cn(
-                  "w-10 h-10 rounded-lg flex flex-col items-center justify-center shrink-0 text-white",
+                  "w-12 h-12 rounded-lg flex flex-col items-center justify-center shrink-0 text-white",
                   conf.color
                 )}>
                   <span className="text-xs font-bold leading-none">{m}/{d}</span>
@@ -562,6 +675,7 @@ function MonthlySummaryPanel({ store, onSelectDate }: MonthlySummaryPanelProps) 
                     <span className={cn("text-xs px-1.5 py-0.5 rounded font-medium", conf.badgeBg, conf.badgeText)}>
                       {conf.shortLabel}
                     </span>
+                    <span className="text-xs text-stone-500 font-medium">{visitLabel}</span>
                   </div>
                   <div className="text-xs text-stone-500 mt-0.5 truncate">
                     {r.insuranceMode === "medical" && (r.medicalInput.mode === "comprehensive" ? "包括型" : "従来型")}
@@ -596,6 +710,7 @@ function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
   const { year, month, monthlyResults, totalAmount, totalCopay, patientName, stationName } = store;
   const printDate = new Date().toLocaleDateString("ja-JP");
   const handlePrint = () => window.print();
+  const visitCountLabels = ["初回","2回目","3回目","4回目","5回目","6回目","7回目","8回目","9回目","10回目"];
 
   return (
     <div id="print-root" className="fixed inset-0 z-50 bg-stone-800/80 flex items-center justify-center p-4">
@@ -660,20 +775,23 @@ function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
                 <thead>
                   <tr className="bg-stone-100">
                     <th className="border border-stone-300 px-2 py-1.5 text-left font-bold">訪問日</th>
+                    <th className="border border-stone-300 px-2 py-1.5 text-left font-bold">回数</th>
                     <th className="border border-stone-300 px-2 py-1.5 text-left font-bold">種別</th>
                     <th className="border border-stone-300 px-2 py-1.5 text-right font-bold">金額</th>
                     <th className="border border-stone-300 px-2 py-1.5 text-right font-bold">ご負担額</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {monthlyResults.map((r) => {
+                  {monthlyResults.map((r, idx) => {
                     const [y, m, d] = r.date.split("-").map(Number);
                     const weekdays = ["日","月","火","水","木","金","土"];
                     const dow = weekdays[new Date(y, m - 1, d).getDay()];
                     const conf = MODE_CONFIG[r.insuranceMode];
+                    const visitLabel = visitCountLabels[idx] ?? `${idx + 1}回目`;
                     return (
                       <tr key={r.id} className="hover:bg-stone-50">
                         <td className="border border-stone-300 px-2 py-1.5">{m}/{d}（{dow}）</td>
+                        <td className="border border-stone-300 px-2 py-1.5">{visitLabel}</td>
                         <td className="border border-stone-300 px-2 py-1.5">{conf.label}</td>
                         <td className="border border-stone-300 px-2 py-1.5 text-right font-medium">{formatYen(r.totalYen)}</td>
                         <td className="border border-stone-300 px-2 py-1.5 text-right font-medium">{formatYen(r.copayAmount)}</td>
@@ -683,7 +801,7 @@ function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
                 </tbody>
                 <tfoot>
                   <tr className="bg-stone-100 font-bold">
-                    <td colSpan={2} className="border border-stone-300 px-2 py-1.5">合計</td>
+                    <td colSpan={3} className="border border-stone-300 px-2 py-1.5">合計</td>
                     <td className="border border-stone-300 px-2 py-1.5 text-right">{formatYen(totalAmount)}</td>
                     <td className="border border-stone-300 px-2 py-1.5 text-right">{formatYen(totalCopay)}</td>
                   </tr>
@@ -806,9 +924,9 @@ function FeeTablePreview({ stationName, onClose }: FeeTablePreviewProps) {
               <p>・上記料金は令和8年度（2026年度）診療報酬改定・令和6年度介護報酬改定に基づく算定額です。</p>
               <p>・患者様のご負担額は、保険の種別・負担割合・公費負担医療の適用等により異なります。</p>
               <p>・加算の算定は、訪問時の状況・指示書の内容等により異なります。詳細はご相談ください。</p>
-              {selectedMode === "care" || selectedMode === "preventive" ? (
+              {(selectedMode === "care" || selectedMode === "preventive") && (
                 <p>・介護保険の単位数は地域区分単価（1単位＝10.00〜10.90円）により円換算額が異なります。</p>
-              ) : null}
+              )}
               {selectedMode === "psychiatric" && (
                 <p>・自立支援医療（精神通院）適用の場合、月額自己負担上限額の管理が必要です。</p>
               )}
@@ -839,8 +957,8 @@ function FeeTablePreview({ stationName, onClose }: FeeTablePreviewProps) {
 function TableHeader({ children }: { children: React.ReactNode }) {
   return <th className="border border-stone-300 px-2 py-1.5 text-left font-bold bg-stone-100 text-xs">{children}</th>;
 }
-function TableCell({ children, right, colSpan }: { children: React.ReactNode; right?: boolean; colSpan?: number }) {
-  return <td colSpan={colSpan} className={cn("border border-stone-300 px-2 py-1.5 text-xs", right && "text-right")}>{children}</td>;
+function TableCell({ children, right, colSpan, className }: { children: React.ReactNode; right?: boolean; colSpan?: number; className?: string }) {
+  return <td colSpan={colSpan} className={cn("border border-stone-300 px-2 py-1.5 text-xs", right && "text-right", className)}>{children}</td>;
 }
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h3 className="font-bold text-stone-800 text-sm border-l-4 border-amber-500 pl-2 mt-4 mb-2">{children}</h3>;
@@ -849,7 +967,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 function MedicalFeeTable() {
   return (
     <div className="space-y-3">
-      <SectionTitle>訪問看護基本療養費Ⅰ（同一建物以外）</SectionTitle>
+      <SectionTitle>訪問看護基本療養費Ⅰ（同一建物以外・従来型）</SectionTitle>
       <table className="w-full border-collapse text-xs">
         <thead>
           <tr>
@@ -863,6 +981,40 @@ function MedicalFeeTable() {
           <tr><TableCell>准看護師</TableCell><TableCell right>5,050円</TableCell><TableCell right>6,050円</TableCell></tr>
           <tr><TableCell>理学療法士・作業療法士・言語聴覚士</TableCell><TableCell right>5,550円</TableCell><TableCell right>6,550円</TableCell></tr>
           <tr><TableCell>専門看護師（緩和ケア等）</TableCell><TableCell right colSpan={2}>12,850円（週1回）</TableCell></tr>
+        </tbody>
+      </table>
+
+      <SectionTitle>訪問看護基本療養費Ⅱ（同一建物内・従来型）</SectionTitle>
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr>
+            <TableHeader>区分</TableHeader>
+            <TableHeader>週3日目まで</TableHeader>
+            <TableHeader>週4日目以降</TableHeader>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><TableCell>同一建物2人（看護師等）</TableCell><TableCell right>5,550円</TableCell><TableCell right>6,550円</TableCell></tr>
+          <tr><TableCell>同一建物3人以上（看護師等）</TableCell><TableCell right>2,780円</TableCell><TableCell right>3,280円</TableCell></tr>
+        </tbody>
+      </table>
+
+      <SectionTitle>包括型訪問看護療養費（訪問看護ステーション）</SectionTitle>
+      <p className="text-xs text-stone-500 mb-1">※ 1日単位の包括評価。複数回・複数名・夜間加算は包括に含まれます。</p>
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr>
+            <TableHeader>訪問時間</TableHeader>
+            <TableHeader>単一建物20人未満</TableHeader>
+            <TableHeader>20〜49人</TableHeader>
+            <TableHeader>50人以上</TableHeader>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><TableCell>30分以上60分未満</TableCell><TableCell right>12,850円</TableCell><TableCell right>10,280円</TableCell><TableCell right>9,000円</TableCell></tr>
+          <tr><TableCell>60分以上90分未満</TableCell><TableCell right>17,130円</TableCell><TableCell right>13,700円</TableCell><TableCell right>12,000円</TableCell></tr>
+          <tr><TableCell>90分以上</TableCell><TableCell right>20,560円</TableCell><TableCell right>16,450円</TableCell><TableCell right>14,400円</TableCell></tr>
+          <tr><TableCell>90分以上（特別な場合）</TableCell><TableCell right>25,700円</TableCell><TableCell right>20,560円</TableCell><TableCell right>18,000円</TableCell></tr>
         </tbody>
       </table>
 
@@ -905,6 +1057,8 @@ function MedicalFeeTable() {
           <tr><TableCell>深夜訪問看護加算</TableCell><TableCell right>4,200円</TableCell><TableCell>22〜6時</TableCell></tr>
           <tr><TableCell>訪問看護ターミナルケア療養費1</TableCell><TableCell right>25,000円</TableCell><TableCell>在宅死亡月</TableCell></tr>
           <tr><TableCell>訪問看護ターミナルケア療養費2</TableCell><TableCell right>10,000円</TableCell><TableCell>特養等死亡月</TableCell></tr>
+          <tr><TableCell>訪問看護ベースアップ評価料（Ⅰ）</TableCell><TableCell right>100円/日</TableCell><TableCell>職員処遇改善</TableCell></tr>
+          <tr><TableCell>訪問看護ベースアップ評価料（Ⅱ）</TableCell><TableCell right>200円/日</TableCell><TableCell>ステーションのみ</TableCell></tr>
         </tbody>
       </table>
     </div>
@@ -947,7 +1101,8 @@ function CareFeeTable() {
           <tr><TableCell>20分未満</TableCell><TableCell right>265単位</TableCell><TableCell right>2,650円</TableCell></tr>
           <tr><TableCell>30分未満</TableCell><TableCell right>398単位</TableCell><TableCell right>3,980円</TableCell></tr>
           <tr><TableCell>30分以上1時間未満</TableCell><TableCell right>573単位</TableCell><TableCell right>5,730円</TableCell></tr>
-          <tr><TableCell>1時間以上1時間30分未満</TableCell><TableCell right>842単位</TableCell><TableCell right>8,420円</TableCell></tr>
+          <tr><TableCell>1時間以上1時間30分未満</TableCell><TableCell right>838単位</TableCell><TableCell right>8,380円</TableCell></tr>
+          <tr><TableCell>理学療法士等による訪問</TableCell><TableCell right>265単位</TableCell><TableCell right>2,650円</TableCell></tr>
         </tbody>
       </table>
 
@@ -969,6 +1124,7 @@ function CareFeeTable() {
           <tr><TableCell>深夜加算</TableCell><TableCell right>所定単位数の50%</TableCell><TableCell>22〜6時</TableCell></tr>
           <tr><TableCell>ターミナルケア加算</TableCell><TableCell right>2,500単位</TableCell><TableCell>死亡月</TableCell></tr>
           <tr><TableCell>初回加算（Ⅱ）</TableCell><TableCell right>300単位</TableCell><TableCell>月1回</TableCell></tr>
+          <tr><TableCell className="font-medium text-teal-700">処遇改善加算（令和8年6月〜）</TableCell><TableCell right className="text-teal-700">所定単位数の1.8%</TableCell><TableCell>月単位で算定</TableCell></tr>
         </tbody>
       </table>
     </div>
@@ -1036,6 +1192,7 @@ function PreventiveFeeTable() {
           <tr><TableCell>夜間・早朝加算</TableCell><TableCell right>所定単位数の25%</TableCell><TableCell>18〜22時/6〜8時</TableCell></tr>
           <tr><TableCell>深夜加算</TableCell><TableCell right>所定単位数の50%</TableCell><TableCell>22〜6時</TableCell></tr>
           <tr><TableCell>ターミナルケア加算</TableCell><TableCell right>2,500単位</TableCell><TableCell>死亡月</TableCell></tr>
+          <tr><TableCell className="font-medium text-emerald-700">処遇改善加算（令和8年6月〜）</TableCell><TableCell right className="text-emerald-700">所定単位数の1.8%</TableCell><TableCell>月単位で算定</TableCell></tr>
         </tbody>
       </table>
     </div>
@@ -1171,17 +1328,19 @@ export default function Home() {
   const store = useVisitStore();
   const [showPrint, setShowPrint] = useState(false);
   const [showFeeTable, setShowFeeTable] = useState(false);
-  const [activeMainTab, setActiveMainTab] = useState<"calendar" | "summary">("calendar");
 
-  const visitDates = useMemo(
-    () => new Set(store.currentMonthVisits.map((v) => v.date)),
+  const visitDaysForCalendar = useMemo(
+    () => store.currentMonthVisits.map(v => ({ date: v.date, insuranceMode: v.insuranceMode })),
     [store.currentMonthVisits]
   );
 
-  const firstVisitDate = useMemo(
-    () => store.currentMonthVisits.length > 0 ? store.currentMonthVisits[0].date : null,
-    [store.currentMonthVisits]
-  );
+  // 選択日の月内インデックス（何回目か）
+  const selectedVisitIndex = useMemo(() => {
+    if (!store.selectedDate) return 1;
+    const sorted = [...store.currentMonthVisits].sort((a, b) => a.date.localeCompare(b.date));
+    const idx = sorted.findIndex(v => v.date === store.selectedDate);
+    return idx >= 0 ? idx + 1 : 1;
+  }, [store.selectedDate, store.currentMonthVisits]);
 
   const selectedVisitDay = store.selectedDate ? store.getVisitDay(store.selectedDate) : null;
 
@@ -1257,102 +1416,75 @@ export default function Home() {
         </button>
       </div>
 
-      {/* メインタブ */}
-      <div className="bg-white border-b border-stone-200 flex shrink-0">
-        <button
-          onClick={() => setActiveMainTab("calendar")}
-          className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors",
-            activeMainTab === "calendar" ? "border-b-2 border-amber-600 text-amber-700" : "text-stone-500 hover:text-stone-700"
-          )}
-        >
-          <CalendarDaysIcon className="w-4 h-4" />
-          カレンダー
-        </button>
-        <button
-          onClick={() => setActiveMainTab("summary")}
-          className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors",
-            activeMainTab === "summary" ? "border-b-2 border-amber-600 text-amber-700" : "text-stone-500 hover:text-stone-700"
-          )}
-        >
-          <ClipboardListIcon className="w-4 h-4" />
-          月次集計
-          {store.monthlyResults.length > 0 && (
-            <span className="bg-amber-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-              {store.monthlyResults.length}
-            </span>
-          )}
-        </button>
-      </div>
-
       {/* コンテンツ */}
-      <div className="flex-1 overflow-y-auto">
-        {activeMainTab === "calendar" ? (
-          <div className="p-4 space-y-4">
-            {/* デフォルト保険種別 */}
-            <div className="bg-white rounded-xl border border-stone-200 p-3">
-              <div className="text-xs text-stone-500 mb-2">新規訪問日のデフォルト種別</div>
-              <div className="grid grid-cols-2 gap-1.5">
-                {(["medical", "care", "preventive", "psychiatric"] as InsuranceMode[]).map((m) => {
-                  const conf = MODE_CONFIG[m];
-                  const isActive = store.globalInsuranceMode === m;
-                  return (
-                    <button
-                      key={m}
-                      onClick={() => store.setGlobalInsuranceMode(m)}
-                      className={cn(
-                        "py-2 rounded-lg text-sm font-bold transition-all",
-                        isActive ? `${conf.color} text-white shadow-sm` : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-                      )}
-                    >
-                      {conf.label}
-                    </button>
-                  );
-                })}
-              </div>
+      <div className="flex-1 overflow-y-auto pb-24">
+        <div className="p-4 space-y-4">
+          {/* デフォルト保険種別 */}
+          <div className="bg-white rounded-xl border border-stone-200 p-3">
+            <div className="text-xs text-stone-500 mb-2 font-medium">新規訪問日のデフォルト種別</div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {(["medical", "care", "preventive", "psychiatric"] as InsuranceMode[]).map((m) => {
+                const conf = MODE_CONFIG[m];
+                const isActive = store.globalInsuranceMode === m;
+                return (
+                  <button
+                    key={m}
+                    onClick={() => store.setGlobalInsuranceMode(m)}
+                    className={cn(
+                      "py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5",
+                      isActive ? `${conf.color} text-white shadow-sm` : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                    )}
+                  >
+                    <span className={cn("w-4 h-4", isActive ? "text-white" : "text-stone-400")}>
+                      {conf.icon}
+                    </span>
+                    {conf.label}
+                  </button>
+                );
+              })}
             </div>
+          </div>
 
-            {/* カレンダー */}
-            <div className="bg-white rounded-xl border border-stone-200 p-4">
-              <Calendar
-                year={store.year}
-                month={store.month}
-                visitDates={visitDates}
-                selectedDate={store.selectedDate}
-                firstVisitDate={firstVisitDate}
-                onToggle={store.toggleVisitDay}
-                onSelect={store.setSelectedDate}
-              />
-            </div>
+          {/* カレンダー */}
+          <div className="bg-white rounded-xl border border-stone-200 p-4">
+            <Calendar
+              year={store.year}
+              month={store.month}
+              visitDays={visitDaysForCalendar}
+              selectedDate={store.selectedDate}
+              onToggle={store.toggleVisitDay}
+              onSelect={store.setSelectedDate}
+            />
+          </div>
 
-            {/* 選択日のクイック情報 */}
-            {store.selectedDate && selectedVisitDay && (
-              <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">
-                <div className="bg-amber-50 px-4 py-2 flex items-center justify-between">
-                  <span className="text-sm font-bold text-amber-800">
-                    {store.selectedDate.split("-").slice(1).join("/")} の算定
-                  </span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        store.toggleVisitDay(store.selectedDate!);
-                        store.setSelectedDate(null);
-                      }}
-                      className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors"
-                    >
-                      削除
-                    </button>
-                    <button
-                      onClick={() => store.setSelectedDate(store.selectedDate)}
-                      className="text-xs text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-lg font-medium transition-colors"
-                    >
-                      詳細設定 →
-                    </button>
-                  </div>
+          {/* 選択日のクイック情報 */}
+          {store.selectedDate && selectedVisitDay && (
+            <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">
+              <div className="bg-amber-50 px-4 py-2 flex items-center justify-between">
+                <span className="text-sm font-bold text-amber-800">
+                  {store.selectedDate.split("-").slice(1).join("/")} の算定
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      store.toggleVisitDay(store.selectedDate!);
+                      store.setSelectedDate(null);
+                    }}
+                    className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                  >
+                    削除
+                  </button>
+                  <button
+                    onClick={() => store.setSelectedDate(store.selectedDate)}
+                    className="text-xs text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-lg font-medium transition-colors"
+                  >
+                    詳細設定 →
+                  </button>
                 </div>
-                <div className="px-4 py-3">
-                  <div className="flex items-center justify-between">
+              </div>
+              <div className="px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
                     <span className={cn(
                       "text-xs px-2 py-0.5 rounded font-medium",
                       MODE_CONFIG[selectedVisitDay.insuranceMode].badgeBg,
@@ -1360,48 +1492,51 @@ export default function Home() {
                     )}>
                       {MODE_CONFIG[selectedVisitDay.insuranceMode].label}
                     </span>
-                    <span className="font-bold text-stone-800">
-                      {(() => {
-                        const r = store.monthlyResults.find(r => r.date === store.selectedDate);
-                        return r ? formatYen(r.totalYen) : "—";
-                      })()}
-                    </span>
+                    <span className="text-xs text-stone-500">{selectedVisitIndex}回目</span>
                   </div>
+                  <span className="font-bold text-stone-800">
+                    {(() => {
+                      const r = store.monthlyResults.find(r => r.date === store.selectedDate);
+                      return r ? formatYen(r.totalYen) : "—";
+                    })()}
+                  </span>
                 </div>
               </div>
-            )}
-
-            {/* 凡例 */}
-            <div className="flex items-center gap-4 text-xs text-stone-500 justify-center">
-              <div className="flex items-center gap-1">
-                <div className="w-4 h-4 rounded bg-amber-100 border border-amber-300" />
-                <span>訪問日</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-4 h-4 rounded border-2 border-amber-400" />
-                <span>今日</span>
-              </div>
             </div>
+          )}
+
+          {/* 凡例 */}
+          <div className="flex flex-wrap items-center gap-3 text-xs text-stone-500 justify-center">
+            {(["medical", "care", "preventive", "psychiatric"] as InsuranceMode[]).map(m => (
+              <div key={m} className="flex items-center gap-1">
+                <div className={cn("w-3 h-3 rounded", MODE_CONFIG[m].color)} />
+                <span>{MODE_CONFIG[m].label}</span>
+              </div>
+            ))}
           </div>
-        ) : (
-          <div className="p-4">
-            <MonthlySummaryPanel
-              store={store}
-              onSelectDate={(date) => {
-                store.setSelectedDate(date);
-                setActiveMainTab("calendar");
-              }}
-            />
-          </div>
-        )}
+        </div>
       </div>
 
-      {/* 訪問日詳細パネル */}
+      {/* 月次集計 固定ボタン（訪問日が1件以上の時） */}
+      {store.monthlyResults.length > 0 && (
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg px-4 pb-4 pt-2 bg-gradient-to-t from-stone-100 to-transparent z-20">
+          <button
+            onClick={() => setShowPrint(true)}
+            className="w-full py-4 bg-amber-600 text-white rounded-2xl font-bold text-base flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all"
+          >
+            <ClipboardListIcon className="w-5 h-5" />
+            月次集計を確認する（{store.monthlyResults.length}回 / {formatYen(store.totalAmount)}）
+          </button>
+        </div>
+      )}
+
+      {/* 訪問日詳細パネル（ウィザード） */}
       {store.selectedDate && selectedVisitDay && (
         <VisitDetailPanel
           dateStr={store.selectedDate}
           store={store}
           onClose={() => store.setSelectedDate(null)}
+          visitIndex={selectedVisitIndex}
         />
       )}
 

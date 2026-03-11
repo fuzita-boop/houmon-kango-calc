@@ -1531,3 +1531,42 @@ export const defaultSeishinCopayTracker: SeishinCopayTracker = {
   monthlyLimit: 5000,
   alreadyPaid: 0,
 };
+
+// ============================================================
+// 処遇改善加算・ベースアップ評価料（令和8年度改定）
+// ============================================================
+
+/**
+ * 介護保険 訪問看護・介護予防訪問看護
+ * 処遇改善加算（令和8年6月〜新設）
+ * 加算率：1.8%（区分によらず一律）
+ * 医療保険の訪問看護療養費は算定対象外
+ */
+export const CARE_SHOGU_KAIZEN_RATE = 0.018;
+
+/**
+ * 医療保険 訪問看護ベースアップ評価料（令和6年度改定）
+ * 評価料（Ⅰ）：1点/日
+ * 評価料（Ⅱ）：2点/日（訪問看護ステーションのみ）
+ */
+export const MEDICAL_BASEUP_FEE = {
+  type1: 100,  // 評価料（Ⅰ）1点 = 10円 × 10 = 100円
+  type2: 200,  // 評価料（Ⅱ）2点 = 10円 × 20 = 200円
+} as const;
+
+export type MedicalBaseupType = "none" | "type1" | "type2";
+
+/**
+ * 介護保険の処遇改善加算を計算する
+ * @param totalUnits 処遇改善加算を除く総単位数
+ * @param rate 地域単価
+ * @returns 加算単位数と円換算
+ */
+export function calcShoguKaizenKasan(
+  totalUnits: number,
+  rate: number
+): { units: number; yen: number } {
+  const units = Math.round(totalUnits * CARE_SHOGU_KAIZEN_RATE);
+  const yen = Math.floor(units * rate);
+  return { units, yen };
+}
