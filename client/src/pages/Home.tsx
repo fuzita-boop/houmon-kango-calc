@@ -227,7 +227,9 @@ interface VisitDetailPanelProps {
 
 function VisitDetailPanel({ dateStr, store, onClose, visitIndex }: VisitDetailPanelProps) {
   const visitDay = store.getVisitDay(dateStr);
-  const [wizardStep, setWizardStep] = useState<WizardStep>("mode");
+  // 2回目以降は前回内容を引き継いでいるのでステップ2（算定条件）から開始
+  const initialStep: WizardStep = visitIndex >= 2 ? "calc" : "mode";
+  const [wizardStep, setWizardStep] = useState<WizardStep>(initialStep);
   const [showAutoCopyBanner, setShowAutoCopyBanner] = useState(visitDay?.wasAutoCopied ?? false);
 
   if (!visitDay) return null;
