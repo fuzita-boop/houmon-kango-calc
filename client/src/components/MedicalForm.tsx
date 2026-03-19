@@ -479,6 +479,22 @@ export default function MedicalForm({ input, onChange }: MedicalFormProps) {
           </div>
         )}
       </Section>
+
+      {/* 訪問看護物価対応料1 */}
+      <Section title="訪問看護物価対応料（令和8年6月〜新設）" badge="新設">
+        <SwitchRow
+          label="物価対応料1を算定する"
+          checked={input.bukkaTaiou ?? false}
+          onChange={(v) => onChange({ bukkaTaiou: v })}
+          tooltip="訪問看護基本療養費Ⅰ・Ⅱ・Ⅲ算定者。月初日60円、以降各日20円（令和9年6月以降2倍）"
+        />
+        {(input.bukkaTaiou ?? false) && (
+          <div className="text-xs text-stone-500 bg-amber-50 rounded px-3 py-2 border border-amber-200">
+            月初日の訪問: <span className="font-bold text-amber-700">+60円</span>　
+            2日目以降: <span className="font-bold text-amber-700">+20円</span>
+          </div>
+        )}
+      </Section>
     </div>
   );
 }

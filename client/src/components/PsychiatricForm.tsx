@@ -6,7 +6,7 @@
  * - 自立支援医療の月額上限管理
  */
 
-import type { PsychCalcInput, SeishinCopayTracker, ManagementFeeType } from "@/lib/calcEngine";
+import type { PsychCalcInput, SeishinCopayTracker, ManagementFeeType, BukkaTaiouType } from "@/lib/calcEngine";
 import { cn } from "@/lib/utils";
 
 interface PsychiatricFormProps {
@@ -243,6 +243,38 @@ export default function PsychiatricForm({ input, onChange }: PsychiatricFormProp
             ]}
           />
         )}
+      </Section>
+
+      {/* 情報提供療養費 */}
+      <Section title="情報提供療養費（月1回）">
+        <ToggleRow
+          label="精神科訪問看護情報提供療養費"
+          checked={input.infoProvision ?? false}
+          onChange={(v) => onChange({ infoProvision: v })}
+          note="市区町村・学校・介護支援専門員等への情報提供 +1,500円"
+        />
+        {(input.infoProvision ?? false) && (
+          <SelectRow
+            label="情報提供先"
+            value={input.infoProvisionType ?? "type1"}
+            onChange={(v) => onChange({ infoProvisionType: v as "type1" | "type2" | "type3" })}
+            options={[
+              { value: "type1", label: "Ⅰ 市区町村等への情報提供（月1回）" },
+              { value: "type2", label: "Ⅱ 学校等への情報提供（年1回）" },
+              { value: "type3", label: "Ⅲ 介護支援専門員等への情報提供（月1回）" },
+            ]}
+          />
+        )}
+      </Section>
+
+      {/* 物価対応料 */}
+      <Section title="訪問看護物価対応料（令和8年6月〜新設）">
+        <ToggleRow
+          label="物価対応料2を算定する"
+          checked={input.bukkaTaiou ?? false}
+          onChange={(v) => onChange({ bukkaTaiou: v })}
+          note="精神科訪問看護基本療養費算定者 +20円/日（令和9年6月以降は40円/日）"
+        />
       </Section>
 
       {/* 月1回加算 */}

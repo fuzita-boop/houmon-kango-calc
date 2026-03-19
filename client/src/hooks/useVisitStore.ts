@@ -20,6 +20,8 @@ import type {
   PsychCalcInput,
   PreventiveCareCalcInput,
   SeishinCopayTracker,
+  BukkaTaiouType,
+  MedicalBaseupType,
 } from "@/lib/calcEngine";
 import {
   defaultInput,
@@ -34,6 +36,10 @@ import {
   calculatePreventiveCare,
   calcCopay,
   calcSeishinCopayWithTracker,
+  calcShoguKaizenKasan,
+  calcBukkaTaiouRyo,
+  MEDICAL_BASEUP_FEE,
+  CARE_REGION_RATES,
 } from "@/lib/calcEngine";
 import { nanoid } from "nanoid";
 
@@ -49,6 +55,12 @@ export interface VisitDay {
   psychInput: PsychCalcInput;
   copayInput: PatientCopayInput;
   seishinCopayTracker: SeishinCopayTracker;
+  /** 訪問看護物価対応料の種別 */
+  bukkaTaiouType: BukkaTaiouType;
+  /** 訪問看護ベースアップ評価料の種別 */
+  medicalBaseupType: MedicalBaseupType;
+  /** 介護保険：処遇改善加算を適用するか */
+  applyShoguKaizen: boolean;
   /** 自動コピーされた訪問日かどうか（UIでバナー表示用） */
   wasAutoCopied?: boolean;
 }
@@ -57,6 +69,9 @@ export interface VisitDayResult extends VisitDay {
   total: number;        // 医療保険:円 / 介護保険:単位数
   totalYen: number;     // 円換算
   copayAmount: number;  // 患者自己負担額
+  bukkaRyo: number;     // 物価対応料（円）
+  shoguKaizenYen: number; // 処遇改善加算（円）
+  baseupRyo: number;    // ベースアップ評価料（円）
 }
 
 // ============================================================
@@ -167,6 +182,9 @@ function createDefaultVisitDay(date: string, mode: InsuranceMode): VisitDay {
     psychInput: { ...defaultPsychInput },
     copayInput: { ...defaultCopayInput, insuranceType: mode === "medical" || mode === "psychiatric" ? "medical" : "care" },
     seishinCopayTracker: { ...defaultSeishinCopayTracker },
+    bukkaTaiouType: "none",
+    medicalBaseupType: "none",
+    applyShoguKaizen: false,
     wasAutoCopied: false,
   };
 }
@@ -202,6 +220,9 @@ function createAutoCopiedVisitDay(
     psychInput,
     copayInput: { ...prevDay.copayInput },
     seishinCopayTracker: { ...prevDay.seishinCopayTracker },
+    bukkaTaiouType: prevDay.bukkaTaiouType,
+    medicalBaseupType: prevDay.medicalBaseupType,
+    applyShoguKaizen: prevDay.applyShoguKaizen,
     wasAutoCopied: true,
   };
 }
@@ -214,31 +235,54 @@ function calcVisitDayResult(day: VisitDay): VisitDayResult {
   let total = 0;
   let totalYen = 0;
   let copayAmount = 0;
+  let bukkaRyo = 0;
+  let shoguKaizenYen = 0;
+  let baseupRyo = 0;
 
   if (day.insuranceMode === "medical") {
     const result = calculate(day.medicalInput);
     total = result.total;
-    totalYen = result.total;
-    const copay = calcCopay(result.total, day.copayInput);
+    // 物価対応料（type1）
+    bukkaRyo = calcBukkaTaiouRyo(day.bukkaTaiouType, day.medicalInput.isFirstVisitOfMonth);
+    // ベースアップ評価料
+    baseupRyo = day.medicalBaseupType !== "none" ? MEDICAL_BASEUP_FEE[day.medicalBaseupType as "type1" | "type2"] : 0;
+    totalYen = result.total + bukkaRyo + baseupRyo;
+    const copay = calcCopay(totalYen, day.copayInput);
     copayAmount = copay.amount;
   } else if (day.insuranceMode === "care") {
     const result = calculateCare(day.careInput);
     total = result.totalUnit ?? 0;
-    totalYen = result.totalYen ?? 0;
+    const baseYen = result.totalYen ?? 0;
+    // 処遇改善加算
+    if (day.applyShoguKaizen) {
+      const rate = CARE_REGION_RATES[day.careInput.regionRate];
+      const kaizen = calcShoguKaizenKasan(total, rate);
+      shoguKaizenYen = kaizen.yen;
+    }
+    totalYen = baseYen + shoguKaizenYen;
     const copay = calcCopay(totalYen, { ...day.copayInput, insuranceType: "care" });
     copayAmount = copay.amount;
   } else if (day.insuranceMode === "preventive") {
     const result = calculatePreventiveCare(day.preventiveCareInput);
     total = result.totalUnit ?? 0;
-    totalYen = result.totalYen ?? 0;
+    const baseYen = result.totalYen ?? 0;
+    // 処遇改善加算
+    if (day.applyShoguKaizen) {
+      const rate = CARE_REGION_RATES[day.preventiveCareInput.regionRate];
+      const kaizen = calcShoguKaizenKasan(total, rate);
+      shoguKaizenYen = kaizen.yen;
+    }
+    totalYen = baseYen + shoguKaizenYen;
     const copay = calcCopay(totalYen, { ...day.copayInput, insuranceType: "care" });
     copayAmount = copay.amount;
   } else if (day.insuranceMode === "psychiatric") {
     const result = calculatePsychiatric(day.psychInput);
     total = result.total;
-    totalYen = result.total;
+    // 物価対応料（type2）
+    bukkaRyo = calcBukkaTaiouRyo(day.bukkaTaiouType, day.psychInput.isFirstVisitOfMonth);
+    totalYen = result.total + bukkaRyo;
     // 自立支援医療の月額上限管理
-    const baseCopay = calcCopay(result.total, day.copayInput);
+    const baseCopay = calcCopay(totalYen, day.copayInput);
     if (day.copayInput.kohiType === "seishin") {
       const tracked = calcSeishinCopayWithTracker(baseCopay.amount, day.seishinCopayTracker);
       copayAmount = tracked.actualPayment;
@@ -247,7 +291,7 @@ function calcVisitDayResult(day: VisitDay): VisitDayResult {
     }
   }
 
-  return { ...day, total, totalYen, copayAmount };
+  return { ...day, total, totalYen, copayAmount, bukkaRyo, shoguKaizenYen, baseupRyo };
 }
 
 // ============================================================

@@ -442,20 +442,66 @@ function VisitDetailPanel({ dateStr, store, onClose, visitIndex }: VisitDetailPa
               />
             )}
             {visitDay.insuranceMode === "care" && (
-              <CareForm
-                input={visitDay.careInput}
-                onChange={(updates) => store.updateVisitDay(dateStr, {
-                  careInput: { ...visitDay.careInput, ...updates }
-                })}
-              />
+              <div className="space-y-3">
+                <CareForm
+                  input={visitDay.careInput}
+                  onChange={(updates) => store.updateVisitDay(dateStr, {
+                    careInput: { ...visitDay.careInput, ...updates }
+                  })}
+                />
+                {/* 処遇改善加算 */}
+                <div className="bg-teal-50 border border-teal-200 rounded-xl p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-bold text-teal-800">処遇改善加算（1.8%）</div>
+                      <div className="text-xs text-teal-600 mt-0.5">令和8年6月〜。所定単位数の1.8%を加算</div>
+                    </div>
+                    <button
+                      onClick={() => store.updateVisitDay(dateStr, { applyShoguKaizen: !visitDay.applyShoguKaizen })}
+                      className={cn(
+                        "w-12 h-6 rounded-full transition-all relative",
+                        visitDay.applyShoguKaizen ? "bg-teal-500" : "bg-stone-300"
+                      )}
+                    >
+                      <span className={cn(
+                        "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all",
+                        visitDay.applyShoguKaizen ? "left-6" : "left-0.5"
+                      )} />
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
             {visitDay.insuranceMode === "preventive" && (
-              <PreventiveCareForm
-                input={visitDay.preventiveCareInput}
-                onChange={(updates) => store.updateVisitDay(dateStr, {
-                  preventiveCareInput: { ...visitDay.preventiveCareInput, ...updates }
-                })}
-              />
+              <div className="space-y-3">
+                <PreventiveCareForm
+                  input={visitDay.preventiveCareInput}
+                  onChange={(updates) => store.updateVisitDay(dateStr, {
+                    preventiveCareInput: { ...visitDay.preventiveCareInput, ...updates }
+                  })}
+                />
+                {/* 処遇改善加算 */}
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-bold text-emerald-800">処遇改善加算（1.8%）</div>
+                      <div className="text-xs text-emerald-600 mt-0.5">令和8年6月〜。所定単位数の1.8%を加算</div>
+                    </div>
+                    <button
+                      onClick={() => store.updateVisitDay(dateStr, { applyShoguKaizen: !visitDay.applyShoguKaizen })}
+                      className={cn(
+                        "w-12 h-6 rounded-full transition-all relative",
+                        visitDay.applyShoguKaizen ? "bg-emerald-500" : "bg-stone-300"
+                      )}
+                    >
+                      <span className={cn(
+                        "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all",
+                        visitDay.applyShoguKaizen ? "left-6" : "left-0.5"
+                      )} />
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
             {visitDay.insuranceMode === "psychiatric" && (
               <PsychiatricForm
@@ -535,7 +581,7 @@ function VisitDetailPanel({ dateStr, store, onClose, visitIndex }: VisitDetailPa
         )}
 
         {/* 合計行 + ナビゲーションボタン */}
-        <div className="px-4 pb-4 pt-1">
+        <div className="px-4 pb-20 pt-1">
           {(wizardStep === "calc" || wizardStep === "copay") && (
             <>
               <div className="flex items-center justify-between mb-1">
@@ -1013,10 +1059,10 @@ function MedicalFeeTable() {
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell>30分以上60分未満</TableCell><TableCell right>12,850円</TableCell><TableCell right>10,280円</TableCell><TableCell right>9,000円</TableCell></tr>
-          <tr><TableCell>60分以上90分未満</TableCell><TableCell right>17,130円</TableCell><TableCell right>13,700円</TableCell><TableCell right>12,000円</TableCell></tr>
-          <tr><TableCell>90分以上</TableCell><TableCell right>20,560円</TableCell><TableCell right>16,450円</TableCell><TableCell right>14,400円</TableCell></tr>
-          <tr><TableCell>90分以上（特別な場合）</TableCell><TableCell right>25,700円</TableCell><TableCell right>20,560円</TableCell><TableCell right>18,000円</TableCell></tr>
+          <tr><TableCell>30分以上60分未満</TableCell><TableCell right>7,010円</TableCell><TableCell right>6,310円</TableCell><TableCell right>5,960円</TableCell></tr>
+          <tr><TableCell>60分以上90分未満</TableCell><TableCell right>11,010円</TableCell><TableCell right>9,910円</TableCell><TableCell right>9,360円</TableCell></tr>
+          <tr><TableCell>90分以上</TableCell><TableCell right>14,010円</TableCell><TableCell right>13,730円</TableCell><TableCell right>13,450円</TableCell></tr>
+          <tr><TableCell>90分以上（特別な場合）</TableCell><TableCell right>15,510円</TableCell><TableCell right>15,200円</TableCell><TableCell right>14,890円</TableCell></tr>
         </tbody>
       </table>
 
@@ -1061,6 +1107,39 @@ function MedicalFeeTable() {
           <tr><TableCell>訪問看護ターミナルケア療養費2</TableCell><TableCell right>10,000円</TableCell><TableCell>特養等死亡月</TableCell></tr>
           <tr><TableCell>訪問看護ベースアップ評価料（Ⅰ）</TableCell><TableCell right>100円/日</TableCell><TableCell>職員処遇改善</TableCell></tr>
           <tr><TableCell>訪問看護ベースアップ評価料（Ⅱ）</TableCell><TableCell right>200円/日</TableCell><TableCell>ステーションのみ</TableCell></tr>
+        </tbody>
+      </table>
+
+      <SectionTitle>訪問看護物価対応料（令和8年6月〜新設）</SectionTitle>
+      <p className="text-xs text-stone-500 mb-1">※ 訪問看護基本療養費Ⅰ・Ⅱ・Ⅲを算定する利用者に適用。</p>
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr>
+            <TableHeader>区分</TableHeader>
+            <TableHeader>金額</TableHeader>
+            <TableHeader>算定要件</TableHeader>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><TableCell className="font-medium text-blue-700">物価対応料1（月初日）</TableCell><TableCell right className="text-blue-700">60円</TableCell><TableCell>月の初回訪問日</TableCell></tr>
+          <tr><TableCell className="font-medium text-blue-700">物価対応料1（2日目以降）</TableCell><TableCell right className="text-blue-700">20円</TableCell><TableCell>2回目以降の訪問日</TableCell></tr>
+          <tr><TableCell className="text-stone-500 text-xs" colSpan={3}>※令和9年6月以降は月初日120円・2日目以降40円に引き上げ予定</TableCell></tr>
+        </tbody>
+      </table>
+
+      <SectionTitle>訪問看護情報提供療養費</SectionTitle>
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr>
+            <TableHeader>区分</TableHeader>
+            <TableHeader>金額</TableHeader>
+            <TableHeader>算定要件</TableHeader>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><TableCell>情報提供療養費Ⅰ</TableCell><TableCell right>1,500円</TableCell><TableCell>市区町村等への情報提供（月1回）</TableCell></tr>
+          <tr><TableCell>情報提供療養費Ⅱ</TableCell><TableCell right>1,500円</TableCell><TableCell>学校等への情報提供（年1回）</TableCell></tr>
+          <tr><TableCell>情報提供療養費Ⅲ</TableCell><TableCell right>1,500円</TableCell><TableCell>介護支援専門員等への情報提供（月1回）</TableCell></tr>
         </tbody>
       </table>
     </div>
@@ -1299,6 +1378,38 @@ function PsychiatricFeeTable() {
           <tr><TableCell>特別管理加算（2）</TableCell><TableCell right>2,500円</TableCell><TableCell>月1回</TableCell></tr>
           <tr><TableCell>訪問看護ターミナルケア療養費1</TableCell><TableCell right>25,000円</TableCell><TableCell>在宅死亡月</TableCell></tr>
           <tr><TableCell>訪問看護ターミナルケア療養費2</TableCell><TableCell right>10,000円</TableCell><TableCell>特養等死亡月</TableCell></tr>
+        </tbody>
+      </table>
+
+      <SectionTitle>精神科訪問看護情報提供療養費</SectionTitle>
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr>
+            <TableHeader>区分</TableHeader>
+            <TableHeader>金額</TableHeader>
+            <TableHeader>算定要件</TableHeader>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><TableCell>情報提供療養費Ⅰ</TableCell><TableCell right>1,500円</TableCell><TableCell>市区町村等への情報提供（月1回）</TableCell></tr>
+          <tr><TableCell>情報提供療養費Ⅱ</TableCell><TableCell right>1,500円</TableCell><TableCell>学校等への情報提供（年1回）</TableCell></tr>
+          <tr><TableCell>情報提供療養費Ⅲ</TableCell><TableCell right>1,500円</TableCell><TableCell>介護支援専門員等への情報提供（月1回）</TableCell></tr>
+        </tbody>
+      </table>
+
+      <SectionTitle>訪問看護物価対応料（令和8年6月〜新設）</SectionTitle>
+      <p className="text-xs text-stone-500 mb-1">※ 精神科訪問看護基本療養費を算定する利用者に適用。</p>
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr>
+            <TableHeader>区分</TableHeader>
+            <TableHeader>金額</TableHeader>
+            <TableHeader>算定要件</TableHeader>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><TableCell className="font-medium text-blue-700">物価対応料2</TableCell><TableCell right className="text-blue-700">20円/日</TableCell><TableCell>1日につき算定</TableCell></tr>
+          <tr><TableCell className="text-stone-500 text-xs" colSpan={3}>※令和9年6月以降は40円/日に引き上げ予定</TableCell></tr>
         </tbody>
       </table>
 

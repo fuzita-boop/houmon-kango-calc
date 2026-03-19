@@ -169,6 +169,7 @@ export interface CalcInput {
   coVisitStaffType: CoVisitStaffType;
   timeZone: TimeZone;
   timeZoneMonthDay: "1-15" | "16+";
+  bukkaTaiou: boolean;             // 訪問看護物価対応料1（医療保険）
 }
 
 /** 計算条件の入力（介護保険） */
@@ -364,7 +365,7 @@ const CARE_BASIC_HOSPITAL: Record<CareVisitDuration, number> = {
 };
 
 /** 介護保険 地域区分単価 */
-const CARE_REGION_RATES: Record<CareRegionRate, number> = {
+export const CARE_REGION_RATES: Record<CareRegionRate, number> = {
   "10.90": 10.90,
   "10.72": 10.72,
   "10.68": 10.68,
@@ -553,6 +554,10 @@ export function calcCopay(
   if (kohiType === "seishin") {
     // 自立支援医療（精神通院）：原則1割
     const baseAmount = Math.floor(totalAmount * 0.1);
+    // 一定所得以上（上限なし）の場合は1割負担のみ
+    if (kohiIncomeClass === "jyoshotoku") {
+      return { amount: baseAmount, note: "自立支援医療（精神通院）1割負担（上限なし・一定所得以上）" };
+    }
     const limit = SEISHIN_COPAY_LIMIT_JYUDO[kohiIncomeClass];
     if (limit === null || limit === undefined) {
       return { amount: baseAmount, note: "自立支援医療（精神通院）1割負担" };
@@ -892,6 +897,17 @@ export function calculate(input: CalcInput): CalcResult {
     items.push({ label: `訪問看護ターミナルケア療養費${typeLabel}`, amount: fee, unit: "円", note: "死亡月に算定" });
   }
 
+  // 訪問看護物価対応料1（医療保険）
+  if (input.bukkaTaiou) {
+    const fee = input.isFirstVisitOfMonth ? BUKKA_TAIOU_RYO.type1_first : BUKKA_TAIOU_RYO.type1_subsequent;
+    items.push({
+      label: `訪問看護物価対応料1（${input.isFirstVisitOfMonth ? "月初日60円" : "2日目以20円"}）`,
+      amount: fee,
+      unit: "円",
+      note: "令和9年6月以降2倍に引上げ予定",
+    });
+  }
+
   const total = items.filter(i => !i.disabled).reduce((sum, item) => sum + item.amount, 0);
   return { total, items, warnings };
 }
@@ -969,6 +985,7 @@ export const defaultInput: CalcInput = {
   coVisitStaffType: "nurse",
   timeZone: "normal",
   timeZoneMonthDay: "1-15",
+  bukkaTaiou: false,
 };
 
 /** デフォルト入力値（介護保険） */
@@ -1045,14 +1062,18 @@ export interface PsychCalcInput {
   h24SupportType: "ika" | "ro";
   specialManagement: boolean;
   specialManagementType: SpecialManagementType;
+  infoProvision: boolean;         // 訪問看護情報提供療養費
+  infoProvisionType: InfoProvisionType;
   terminalCare: boolean;
   terminalCareType: TerminalCareType;
+  bukkaTaiou: boolean;             // 訪問看護物価対応料2（精神科）
 }
 
 /** 自立支援医療の月額上限管理入力 */
 export interface SeishinCopayTracker {
-  monthlyLimit: number;      // 月額上限額（円）
+  monthlyLimit: number;      // 月額上限額（円）0=上限なし
   alreadyPaid: number;       // 今月すでに支払った累計額（円）
+  noLimit: boolean;          // 上限なし（自立支援医療の対象外・一定所得以上等）
 }
 
 // ============================================================
@@ -1168,8 +1189,8 @@ export function calcSeishinCopayWithTracker(
 ): { actualPayment: number; note: string; remainingBudget: number } {
   const { monthlyLimit, alreadyPaid } = tracker;
 
-  if (monthlyLimit <= 0) {
-    // 上限なし（重度かつ継続に該当しない場合等）
+  // 上限なし設定の場合
+  if (tracker.noLimit || monthlyLimit <= 0) {
     return {
       actualPayment: baseAmount,
       note: "自立支援医療（精神通院）1割負担（月額上限なし）",
@@ -1347,6 +1368,21 @@ export function calculatePsychiatric(input: PsychCalcInput): CalcResult {
     });
   }
 
+  // 訪問看護情報提供療養費（精神科）
+  if (input.infoProvision) {
+    const typeLabel: Record<InfoProvisionType, string> = {
+      type1: "Ⅰ（市町村等への情報提供）",
+      type2: "Ⅱ（学校等への情報提供）",
+      type3: "Ⅲ（保険医療機関への情報提供）",
+    };
+    items.push({
+      label: `精神科訪問看護情報提供療養費${typeLabel[input.infoProvisionType]}`,
+      amount: INFO_PROVISION_FEE,
+      unit: "円",
+      note: "月1回算定",
+    });
+  }
+
   // ターミナルケア療養費
   if (input.terminalCare) {
     const fee = TERMINAL_CARE_FEE[input.terminalCareType];
@@ -1356,6 +1392,16 @@ export function calculatePsychiatric(input: PsychCalcInput): CalcResult {
       amount: fee,
       unit: "円",
       note: "死亡月に算定",
+    });
+  }
+
+  // 訪問看護物価対応料2（精神科）
+  if (input.bukkaTaiou) {
+    items.push({
+      label: "訪問看護物価対応料2（精神科）",
+      amount: 20,
+      unit: "円",
+      note: "令和9年6月以降40円/日に引上げ予定",
     });
   }
 
@@ -1505,8 +1551,11 @@ export const defaultPsychInput: PsychCalcInput = {
   h24SupportType: "ika",
   specialManagement: false,
   specialManagementType: "type1",
+  infoProvision: false,
+  infoProvisionType: "type1",
   terminalCare: false,
   terminalCareType: "type1",
+  bukkaTaiou: false,
 };
 
 /** デフォルト入力値（介護予防訪問看護） */
@@ -1530,6 +1579,7 @@ export const defaultPreventiveCareInput: PreventiveCareCalcInput = {
 export const defaultSeishinCopayTracker: SeishinCopayTracker = {
   monthlyLimit: 5000,
   alreadyPaid: 0,
+  noLimit: false,
 };
 
 // ============================================================
@@ -1569,4 +1619,39 @@ export function calcShoguKaizenKasan(
   const units = Math.round(totalUnits * CARE_SHOGU_KAIZEN_RATE);
   const yen = Math.floor(units * rate);
   return { units, yen };
+}
+
+// ============================================================
+// 訪問看護物価対応料（令和8年6月〜新設）
+// ============================================================
+
+/**
+ * 訪問看護物価対応料
+ * 物価対応料1：訪問看護基本療養費Ⅰ・Ⅱ・Ⅲ算定の利用者
+ *   月初日：60円、2日目以降：20円
+ * 物価対応料2：精神科訪問看護基本療養費算定の利用者
+ *   1日につき：20円
+ * ※令和9年6月以降は2倍
+ */
+export const BUKKA_TAIOU_RYO = {
+  type1_first: 60,    // 物価対応料1・月初日
+  type1_subsequent: 20, // 物価対応料1・2日目以降
+  type2: 20,          // 物価対応料2（精神科）
+} as const;
+
+export type BukkaTaiouType = "none" | "type1" | "type2";
+
+/**
+ * 訪問看護物価対応料を計算する
+ * @param type 物価対応料の種別（type1=医療保険通常、type2=精神科）
+ * @param isFirstVisitOfMonth 月初日の訪問かどうか
+ * @returns 物価対応料の金額（円）
+ */
+export function calcBukkaTaiouRyo(
+  type: BukkaTaiouType,
+  isFirstVisitOfMonth: boolean
+): number {
+  if (type === "none") return 0;
+  if (type === "type2") return BUKKA_TAIOU_RYO.type2;
+  return isFirstVisitOfMonth ? BUKKA_TAIOU_RYO.type1_first : BUKKA_TAIOU_RYO.type1_subsequent;
 }
