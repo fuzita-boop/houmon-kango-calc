@@ -1013,22 +1013,56 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 function MedicalFeeTable() {
+  // 1割・2割・3割を計算するヘルパー
+  const c = (yen: number) => ({
+    full: `${yen.toLocaleString()}円`,
+    p10: `${Math.ceil(yen * 0.1 / 10) * 10}円`,
+    p20: `${Math.ceil(yen * 0.2 / 10) * 10}円`,
+    p30: `${Math.ceil(yen * 0.3 / 10) * 10}円`,
+  });
   return (
     <div className="space-y-3">
+      <p className="text-xs text-stone-500">※ 自己負担額は10円未満切り上げ。高額療養費・公費負担は別途適用されます。</p>
+
       <SectionTitle>訪問看護基本療養費Ⅰ（同一建物以外・従来型）</SectionTitle>
       <table className="w-full border-collapse text-xs">
         <thead>
           <tr>
             <TableHeader>職種</TableHeader>
             <TableHeader>週3日目まで</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
             <TableHeader>週4日目以降</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell>保健師・助産師・看護師</TableCell><TableCell right>5,550円</TableCell><TableCell right>6,550円</TableCell></tr>
-          <tr><TableCell>准看護師</TableCell><TableCell right>5,050円</TableCell><TableCell right>6,050円</TableCell></tr>
-          <tr><TableCell>理学療法士・作業療法士・言語聴覚士</TableCell><TableCell right>5,550円</TableCell><TableCell right>6,550円</TableCell></tr>
-          <tr><TableCell>専門看護師（緩和ケア等）</TableCell><TableCell right colSpan={2}>12,850円（週1回）</TableCell></tr>
+          <tr>
+            <TableCell>保健師・助産師・看護師</TableCell>
+            <TableCell right>{c(5550).full}</TableCell><TableCell right className="text-blue-700">{c(5550).p10}</TableCell><TableCell right className="text-blue-700">{c(5550).p20}</TableCell><TableCell right className="text-blue-700">{c(5550).p30}</TableCell>
+            <TableCell right>{c(6550).full}</TableCell><TableCell right className="text-blue-700">{c(6550).p10}</TableCell><TableCell right className="text-blue-700">{c(6550).p20}</TableCell><TableCell right className="text-blue-700">{c(6550).p30}</TableCell>
+          </tr>
+          <tr>
+            <TableCell>准看護師</TableCell>
+            <TableCell right>{c(5050).full}</TableCell><TableCell right className="text-blue-700">{c(5050).p10}</TableCell><TableCell right className="text-blue-700">{c(5050).p20}</TableCell><TableCell right className="text-blue-700">{c(5050).p30}</TableCell>
+            <TableCell right>{c(6050).full}</TableCell><TableCell right className="text-blue-700">{c(6050).p10}</TableCell><TableCell right className="text-blue-700">{c(6050).p20}</TableCell><TableCell right className="text-blue-700">{c(6050).p30}</TableCell>
+          </tr>
+          <tr>
+            <TableCell>理学療法士・作業療法士・言語聴覚士</TableCell>
+            <TableCell right>{c(5550).full}</TableCell><TableCell right className="text-blue-700">{c(5550).p10}</TableCell><TableCell right className="text-blue-700">{c(5550).p20}</TableCell><TableCell right className="text-blue-700">{c(5550).p30}</TableCell>
+            <TableCell right>{c(6550).full}</TableCell><TableCell right className="text-blue-700">{c(6550).p10}</TableCell><TableCell right className="text-blue-700">{c(6550).p20}</TableCell><TableCell right className="text-blue-700">{c(6550).p30}</TableCell>
+          </tr>
+          <tr>
+            <TableCell>専門看護師（緩和ケア等）</TableCell>
+            <TableCell right colSpan={4}>{c(12850).full}（週1回）</TableCell>
+            <TableCell right className="text-blue-700">{c(12850).p10}</TableCell>
+            <TableCell right className="text-blue-700">{c(12850).p20}</TableCell>
+            <TableCell right className="text-blue-700">{c(12850).p30}</TableCell>
+            <TableCell className="text-stone-400 text-xs">—</TableCell>
+          </tr>
         </tbody>
       </table>
 
@@ -1038,12 +1072,26 @@ function MedicalFeeTable() {
           <tr>
             <TableHeader>区分</TableHeader>
             <TableHeader>週3日目まで</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
             <TableHeader>週4日目以降</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell>同一建物2人（看護師等）</TableCell><TableCell right>5,550円</TableCell><TableCell right>6,550円</TableCell></tr>
-          <tr><TableCell>同一建物3人以上（看護師等）</TableCell><TableCell right>2,780円</TableCell><TableCell right>3,280円</TableCell></tr>
+          <tr>
+            <TableCell>同一建物2人（看護師等）</TableCell>
+            <TableCell right>{c(5550).full}</TableCell><TableCell right className="text-blue-700">{c(5550).p10}</TableCell><TableCell right className="text-blue-700">{c(5550).p20}</TableCell><TableCell right className="text-blue-700">{c(5550).p30}</TableCell>
+            <TableCell right>{c(6550).full}</TableCell><TableCell right className="text-blue-700">{c(6550).p10}</TableCell><TableCell right className="text-blue-700">{c(6550).p20}</TableCell><TableCell right className="text-blue-700">{c(6550).p30}</TableCell>
+          </tr>
+          <tr>
+            <TableCell>同一建物3人以上（看護師等）</TableCell>
+            <TableCell right>{c(2780).full}</TableCell><TableCell right className="text-blue-700">{c(2780).p10}</TableCell><TableCell right className="text-blue-700">{c(2780).p20}</TableCell><TableCell right className="text-blue-700">{c(2780).p30}</TableCell>
+            <TableCell right>{c(3280).full}</TableCell><TableCell right className="text-blue-700">{c(3280).p10}</TableCell><TableCell right className="text-blue-700">{c(3280).p20}</TableCell><TableCell right className="text-blue-700">{c(3280).p30}</TableCell>
+          </tr>
         </tbody>
       </table>
 
@@ -1053,16 +1101,34 @@ function MedicalFeeTable() {
         <thead>
           <tr>
             <TableHeader>訪問時間</TableHeader>
-            <TableHeader>単一建物20人未満</TableHeader>
+            <TableHeader>20人未満</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
             <TableHeader>20〜49人</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
             <TableHeader>50人以上</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell>30分以上60分未満</TableCell><TableCell right>7,010円</TableCell><TableCell right>6,310円</TableCell><TableCell right>5,960円</TableCell></tr>
-          <tr><TableCell>60分以上90分未満</TableCell><TableCell right>11,010円</TableCell><TableCell right>9,910円</TableCell><TableCell right>9,360円</TableCell></tr>
-          <tr><TableCell>90分以上</TableCell><TableCell right>14,010円</TableCell><TableCell right>13,730円</TableCell><TableCell right>13,450円</TableCell></tr>
-          <tr><TableCell>90分以上（特別な場合）</TableCell><TableCell right>15,510円</TableCell><TableCell right>15,200円</TableCell><TableCell right>14,890円</TableCell></tr>
+          {[
+            { label: "30分以上60分未満", a: 7010, b: 6310, c2: 5960 },
+            { label: "60分以上90分未満", a: 11010, b: 9910, c2: 9360 },
+            { label: "90分以上", a: 14010, b: 13730, c2: 13450 },
+            { label: "90分以上（特別）", a: 15510, b: 15200, c2: 14890 },
+          ].map(r => (
+            <tr key={r.label}>
+              <TableCell>{r.label}</TableCell>
+              <TableCell right>{c(r.a).full}</TableCell><TableCell right className="text-blue-700">{c(r.a).p10}</TableCell><TableCell right className="text-blue-700">{c(r.a).p20}</TableCell><TableCell right className="text-blue-700">{c(r.a).p30}</TableCell>
+              <TableCell right>{c(r.b).full}</TableCell><TableCell right className="text-blue-700">{c(r.b).p10}</TableCell><TableCell right className="text-blue-700">{c(r.b).p20}</TableCell><TableCell right className="text-blue-700">{c(r.b).p30}</TableCell>
+              <TableCell right>{c(r.c2).full}</TableCell><TableCell right className="text-blue-700">{c(r.c2).p10}</TableCell><TableCell right className="text-blue-700">{c(r.c2).p20}</TableCell><TableCell right className="text-blue-700">{c(r.c2).p30}</TableCell>
+            </tr>
+          ))}
         </tbody>
       </table>
 
@@ -1072,15 +1138,29 @@ function MedicalFeeTable() {
           <tr>
             <TableHeader>区分</TableHeader>
             <TableHeader>月初日</TableHeader>
-            <TableHeader>2日目以降（20人未満）</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
+            <TableHeader>2日目以降</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell>通常</TableCell><TableCell right>7,710円</TableCell><TableCell right>3,010円</TableCell></tr>
-          <tr><TableCell>機能強化型1</TableCell><TableCell right>13,760円</TableCell><TableCell right>3,010円</TableCell></tr>
-          <tr><TableCell>機能強化型2</TableCell><TableCell right>10,460円</TableCell><TableCell right>3,010円</TableCell></tr>
-          <tr><TableCell>機能強化型3</TableCell><TableCell right>9,030円</TableCell><TableCell right>3,010円</TableCell></tr>
-          <tr><TableCell>機能強化型4（新設）</TableCell><TableCell right>9,030円</TableCell><TableCell right>3,010円</TableCell></tr>
+          {[
+            { label: "通常", a: 7710, b: 3010 },
+            { label: "機能強化型1", a: 13760, b: 3010 },
+            { label: "機能強化型2", a: 10460, b: 3010 },
+            { label: "機能強化型3", a: 9030, b: 3010 },
+            { label: "機能強化型4（新設）", a: 9030, b: 3010 },
+          ].map(r => (
+            <tr key={r.label}>
+              <TableCell>{r.label}</TableCell>
+              <TableCell right>{c(r.a).full}</TableCell><TableCell right className="text-blue-700">{c(r.a).p10}</TableCell><TableCell right className="text-blue-700">{c(r.a).p20}</TableCell><TableCell right className="text-blue-700">{c(r.a).p30}</TableCell>
+              <TableCell right>{c(r.b).full}</TableCell><TableCell right className="text-blue-700">{c(r.b).p10}</TableCell><TableCell right className="text-blue-700">{c(r.b).p20}</TableCell><TableCell right className="text-blue-700">{c(r.b).p30}</TableCell>
+            </tr>
+          ))}
         </tbody>
       </table>
 
@@ -1090,23 +1170,37 @@ function MedicalFeeTable() {
           <tr>
             <TableHeader>加算名</TableHeader>
             <TableHeader>金額</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
             <TableHeader>算定要件</TableHeader>
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell>24時間対応体制加算 イ</TableCell><TableCell right>6,800円</TableCell><TableCell>月1回</TableCell></tr>
-          <tr><TableCell>24時間対応体制加算 ロ</TableCell><TableCell right>6,520円</TableCell><TableCell>月1回</TableCell></tr>
-          <tr><TableCell>特別管理加算（1）</TableCell><TableCell right>5,000円</TableCell><TableCell>月1回</TableCell></tr>
-          <tr><TableCell>特別管理加算（2）</TableCell><TableCell right>2,500円</TableCell><TableCell>月1回</TableCell></tr>
-          <tr><TableCell>難病等複数回訪問加算（1日2回）</TableCell><TableCell right>4,500円</TableCell><TableCell>1日2回訪問</TableCell></tr>
-          <tr><TableCell>難病等複数回訪問加算（1日3回以上）</TableCell><TableCell right>8,000円</TableCell><TableCell>1日3回以上</TableCell></tr>
-          <tr><TableCell>複数名訪問加算（看護師等）</TableCell><TableCell right>4,500円</TableCell><TableCell>2名同行訪問</TableCell></tr>
-          <tr><TableCell>夜間・早朝訪問看護加算</TableCell><TableCell right>2,100円</TableCell><TableCell>18〜22時/6〜8時</TableCell></tr>
-          <tr><TableCell>深夜訪問看護加算</TableCell><TableCell right>4,200円</TableCell><TableCell>22〜6時</TableCell></tr>
-          <tr><TableCell>訪問看護ターミナルケア療養費1</TableCell><TableCell right>25,000円</TableCell><TableCell>在宅死亡月</TableCell></tr>
-          <tr><TableCell>訪問看護ターミナルケア療養費2</TableCell><TableCell right>10,000円</TableCell><TableCell>特養等死亡月</TableCell></tr>
-          <tr><TableCell>訪問看護ベースアップ評価料（Ⅰ）</TableCell><TableCell right>100円/日</TableCell><TableCell>職員処遇改善</TableCell></tr>
-          <tr><TableCell>訪問看護ベースアップ評価料（Ⅱ）</TableCell><TableCell right>200円/日</TableCell><TableCell>ステーションのみ</TableCell></tr>
+          {[
+            { name: "24時間対応体制加算 イ", yen: 6800, note: "月1回" },
+            { name: "24時間対応体制加算 ロ", yen: 6520, note: "月1回" },
+            { name: "特別管理加算（1）", yen: 5000, note: "月1回" },
+            { name: "特別管理加算（2）", yen: 2500, note: "月1回" },
+            { name: "難病等複数回訪問加算（1日2回）", yen: 4500, note: "1日2回訪問" },
+            { name: "難病等複数回訪問加算（1日3回以上）", yen: 8000, note: "1日3回以上" },
+            { name: "複数名訪問加算（看護師等）", yen: 4500, note: "2名同行訪問" },
+            { name: "夜間・早朝訪問看護加算", yen: 2100, note: "18〜22時/6〜8時" },
+            { name: "深夜訪問看護加算", yen: 4200, note: "22〜6時" },
+            { name: "訪問看護ターミナルケア療養費1", yen: 25000, note: "在宅死亡月" },
+            { name: "訪問看護ターミナルケア療養費2", yen: 10000, note: "特養等死亡月" },
+            { name: "訪問看護ベースアップ評価料（Ⅰ）", yen: 100, note: "職員処遇改善/日" },
+            { name: "訪問看護ベースアップ評価料（Ⅱ）", yen: 200, note: "ステーションのみ/日" },
+          ].map(r => (
+            <tr key={r.name}>
+              <TableCell>{r.name}</TableCell>
+              <TableCell right>{c(r.yen).full}</TableCell>
+              <TableCell right className="text-blue-700">{c(r.yen).p10}</TableCell>
+              <TableCell right className="text-blue-700">{c(r.yen).p20}</TableCell>
+              <TableCell right className="text-blue-700">{c(r.yen).p30}</TableCell>
+              <TableCell>{r.note}</TableCell>
+            </tr>
+          ))}
         </tbody>
       </table>
 
@@ -1147,9 +1241,16 @@ function MedicalFeeTable() {
 }
 
 function CareFeeTable() {
+  const cu = (units: number) => ({
+    units: `${units.toLocaleString()}単位`,
+    full: `${(units * 10).toLocaleString()}円`,
+    p10: `${Math.ceil(units * 10 * 0.1 / 10) * 10}円`,
+    p20: `${Math.ceil(units * 10 * 0.2 / 10) * 10}円`,
+    p30: `${Math.ceil(units * 10 * 0.3 / 10) * 10}円`,
+  });
   return (
     <div className="space-y-3">
-      <p className="text-xs text-stone-500">※ 単位数は令和6年度改定後。円換算は地域区分単価（1単位＝10.00〜10.90円）により異なります。</p>
+      <p className="text-xs text-stone-500">※ 単位数は令和6年度改定後。目安金額は1単位＝10円換算。実際は地域区分単価により異なります。自己負担額は10円未満切り上げ。</p>
 
       <SectionTitle>訪問看護費（訪問看護ステーション）</SectionTitle>
       <table className="w-full border-collapse text-xs">
@@ -1157,15 +1258,29 @@ function CareFeeTable() {
           <tr>
             <TableHeader>訪問時間</TableHeader>
             <TableHeader>単位数</TableHeader>
-            <TableHeader>目安金額（10円換算）</TableHeader>
+            <TableHeader>目安金額</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell>20分未満</TableCell><TableCell right>313単位</TableCell><TableCell right>3,130円</TableCell></tr>
-          <tr><TableCell>30分未満</TableCell><TableCell right>470単位</TableCell><TableCell right>4,700円</TableCell></tr>
-          <tr><TableCell>30分以上1時間未満</TableCell><TableCell right>821単位</TableCell><TableCell right>8,210円</TableCell></tr>
-          <tr><TableCell>1時間以上1時間30分未満</TableCell><TableCell right>1,125単位</TableCell><TableCell right>11,250円</TableCell></tr>
-          <tr><TableCell>理学療法士等による訪問</TableCell><TableCell right>293単位</TableCell><TableCell right>2,930円</TableCell></tr>
+          {[
+            { label: "20分未満", u: 313 },
+            { label: "30分未満", u: 470 },
+            { label: "30分以上1時間未満", u: 821 },
+            { label: "1時間以上1時間＀30分未満", u: 1125 },
+            { label: "理学療法士等による訪問", u: 293 },
+          ].map(r => (
+            <tr key={r.label}>
+              <TableCell>{r.label}</TableCell>
+              <TableCell right>{cu(r.u).units}</TableCell>
+              <TableCell right>{cu(r.u).full}</TableCell>
+              <TableCell right className="text-teal-700">{cu(r.u).p10}</TableCell>
+              <TableCell right className="text-teal-700">{cu(r.u).p20}</TableCell>
+              <TableCell right className="text-teal-700">{cu(r.u).p30}</TableCell>
+            </tr>
+          ))}
         </tbody>
       </table>
 
@@ -1175,15 +1290,29 @@ function CareFeeTable() {
           <tr>
             <TableHeader>訪問時間</TableHeader>
             <TableHeader>単位数</TableHeader>
-            <TableHeader>目安金額（10円換算）</TableHeader>
+            <TableHeader>目安金額</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell>20分未満</TableCell><TableCell right>265単位</TableCell><TableCell right>2,650円</TableCell></tr>
-          <tr><TableCell>30分未満</TableCell><TableCell right>398単位</TableCell><TableCell right>3,980円</TableCell></tr>
-          <tr><TableCell>30分以上1時間未満</TableCell><TableCell right>573単位</TableCell><TableCell right>5,730円</TableCell></tr>
-          <tr><TableCell>1時間以上1時間30分未満</TableCell><TableCell right>838単位</TableCell><TableCell right>8,380円</TableCell></tr>
-          <tr><TableCell>理学療法士等による訪問</TableCell><TableCell right>265単位</TableCell><TableCell right>2,650円</TableCell></tr>
+          {[
+            { label: "20分未満", u: 265 },
+            { label: "30分未満", u: 398 },
+            { label: "30分以上1時間未満", u: 573 },
+            { label: "1時間以上1時間＀30分未満", u: 838 },
+            { label: "理学療法士等による訪問", u: 265 },
+          ].map(r => (
+            <tr key={r.label}>
+              <TableCell>{r.label}</TableCell>
+              <TableCell right>{cu(r.u).units}</TableCell>
+              <TableCell right>{cu(r.u).full}</TableCell>
+              <TableCell right className="text-teal-700">{cu(r.u).p10}</TableCell>
+              <TableCell right className="text-teal-700">{cu(r.u).p20}</TableCell>
+              <TableCell right className="text-teal-700">{cu(r.u).p30}</TableCell>
+            </tr>
+          ))}
         </tbody>
       </table>
 
@@ -1193,29 +1322,50 @@ function CareFeeTable() {
           <tr>
             <TableHeader>加算名</TableHeader>
             <TableHeader>単位数</TableHeader>
+            <TableHeader>目安金額</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
             <TableHeader>算定要件</TableHeader>
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell>緊急時訪問看護加算（Ⅰ）</TableCell><TableCell right>600単位</TableCell><TableCell>月1回</TableCell></tr>
-          <tr><TableCell>特別管理加算（1）</TableCell><TableCell right>500単位</TableCell><TableCell>月1回</TableCell></tr>
-          <tr><TableCell>特別管理加算（2）</TableCell><TableCell right>250単位</TableCell><TableCell>月1回</TableCell></tr>
-          <tr><TableCell>複数名訪問看護加算（Ⅰ）看護師等</TableCell><TableCell right>254単位</TableCell><TableCell>1回</TableCell></tr>
-          <tr><TableCell>夜間・早朝加算</TableCell><TableCell right>所定単位数の25%</TableCell><TableCell>18〜22時/6〜8時</TableCell></tr>
-          <tr><TableCell>深夜加算</TableCell><TableCell right>所定単位数の50%</TableCell><TableCell>22〜6時</TableCell></tr>
-          <tr><TableCell>ターミナルケア加算</TableCell><TableCell right>2,500単位</TableCell><TableCell>死亡月</TableCell></tr>
-          <tr><TableCell>初回加算（Ⅱ）</TableCell><TableCell right>300単位</TableCell><TableCell>月1回</TableCell></tr>
-          <tr><TableCell className="font-medium text-teal-700">処遇改善加算（令和8年6月〜）</TableCell><TableCell right className="text-teal-700">所定単位数の1.8%</TableCell><TableCell>月単位で算定</TableCell></tr>
+          {[
+            { name: "緊急時訪問看護加算（Ⅰ）", u: 600, note: "月1回" },
+            { name: "特別管理加算（1）", u: 500, note: "月1回" },
+            { name: "特別管理加算（2）", u: 250, note: "月1回" },
+            { name: "複数名訪問看護加算（Ⅰ）看護師等", u: 254, note: "1回" },
+            { name: "ターミナルケア加算", u: 2500, note: "死亡月" },
+            { name: "初回加算（Ⅱ）", u: 300, note: "月1回" },
+          ].map(r => (
+            <tr key={r.name}>
+              <TableCell>{r.name}</TableCell>
+              <TableCell right>{cu(r.u).units}</TableCell>
+              <TableCell right>{cu(r.u).full}</TableCell>
+              <TableCell right className="text-teal-700">{cu(r.u).p10}</TableCell>
+              <TableCell right className="text-teal-700">{cu(r.u).p20}</TableCell>
+              <TableCell right className="text-teal-700">{cu(r.u).p30}</TableCell>
+              <TableCell>{r.note}</TableCell>
+            </tr>
+          ))}
         </tbody>
       </table>
+      <p className="text-xs text-stone-500">※ 夜間・早朝加算（所定単位数の25%）、深夜加算（50%）は訪問時間の単位数に応じて変動します。処遇改善加算（1.8%）は月単位で算定。</p>
     </div>
   );
 }
 
 function PreventiveFeeTable() {
+  const cu = (units: number) => ({
+    units: `${units.toLocaleString()}単位`,
+    full: `${(units * 10).toLocaleString()}円`,
+    p10: `${Math.ceil(units * 10 * 0.1 / 10) * 10}円`,
+    p20: `${Math.ceil(units * 10 * 0.2 / 10) * 10}円`,
+    p30: `${Math.ceil(units * 10 * 0.3 / 10) * 10}円`,
+  });
   return (
     <div className="space-y-3">
-      <p className="text-xs text-stone-500">※ 要支援1・2の方が対象です。単位数は令和6年度改定後。</p>
+      <p className="text-xs text-stone-500">※ 要支援1・2の方が対象です。単位数は令和6年度改定後。目安金額は1単位＝10円換算。自己負担額は10円未満切り上げ。</p>
 
       <SectionTitle>介護予防訪問看護費（訪問看護ステーション）</SectionTitle>
       <table className="w-full border-collapse text-xs">
@@ -1223,15 +1373,29 @@ function PreventiveFeeTable() {
           <tr>
             <TableHeader>訪問時間</TableHeader>
             <TableHeader>単位数</TableHeader>
-            <TableHeader>目安金額（10円換算）</TableHeader>
+            <TableHeader>目安金額</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell>20分未満</TableCell><TableCell right>303単位</TableCell><TableCell right>3,030円</TableCell></tr>
-          <tr><TableCell>30分未満</TableCell><TableCell right>451単位</TableCell><TableCell right>4,510円</TableCell></tr>
-          <tr><TableCell>30分以上1時間未満</TableCell><TableCell right>794単位</TableCell><TableCell right>7,940円</TableCell></tr>
-          <tr><TableCell>1時間以上1時間30分未満</TableCell><TableCell right>1,087単位</TableCell><TableCell right>10,870円</TableCell></tr>
-          <tr><TableCell>理学療法士等による訪問</TableCell><TableCell right>294単位</TableCell><TableCell right>2,940円</TableCell></tr>
+          {[
+            { label: "20分未満", u: 303 },
+            { label: "30分未満", u: 451 },
+            { label: "30分以上1時間未満", u: 794 },
+            { label: "1時間以上1時間＀30分未満", u: 1087 },
+            { label: "理学療法士等による訪問", u: 294 },
+          ].map(r => (
+            <tr key={r.label}>
+              <TableCell>{r.label}</TableCell>
+              <TableCell right>{cu(r.u).units}</TableCell>
+              <TableCell right>{cu(r.u).full}</TableCell>
+              <TableCell right className="text-emerald-700">{cu(r.u).p10}</TableCell>
+              <TableCell right className="text-emerald-700">{cu(r.u).p20}</TableCell>
+              <TableCell right className="text-emerald-700">{cu(r.u).p30}</TableCell>
+            </tr>
+          ))}
         </tbody>
       </table>
 
@@ -1241,15 +1405,29 @@ function PreventiveFeeTable() {
           <tr>
             <TableHeader>訪問時間</TableHeader>
             <TableHeader>単位数</TableHeader>
-            <TableHeader>目安金額（10円換算）</TableHeader>
+            <TableHeader>目安金額</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell>20分未満</TableCell><TableCell right>266単位</TableCell><TableCell right>2,660円</TableCell></tr>
-          <tr><TableCell>30分未満</TableCell><TableCell right>399単位</TableCell><TableCell right>3,990円</TableCell></tr>
-          <tr><TableCell>30分以上1時間未満</TableCell><TableCell right>574単位</TableCell><TableCell right>5,740円</TableCell></tr>
-          <tr><TableCell>1時間以上1時間30分未満</TableCell><TableCell right>844単位</TableCell><TableCell right>8,440円</TableCell></tr>
-          <tr><TableCell>理学療法士等による訪問</TableCell><TableCell right>266単位</TableCell><TableCell right>2,660円</TableCell></tr>
+          {[
+            { label: "20分未満", u: 266 },
+            { label: "30分未満", u: 399 },
+            { label: "30分以上1時間未満", u: 574 },
+            { label: "1時間以上1時間＀30分未満", u: 844 },
+            { label: "理学療法士等による訪問", u: 266 },
+          ].map(r => (
+            <tr key={r.label}>
+              <TableCell>{r.label}</TableCell>
+              <TableCell right>{cu(r.u).units}</TableCell>
+              <TableCell right>{cu(r.u).full}</TableCell>
+              <TableCell right className="text-emerald-700">{cu(r.u).p10}</TableCell>
+              <TableCell right className="text-emerald-700">{cu(r.u).p20}</TableCell>
+              <TableCell right className="text-emerald-700">{cu(r.u).p30}</TableCell>
+            </tr>
+          ))}
         </tbody>
       </table>
 
@@ -1259,81 +1437,177 @@ function PreventiveFeeTable() {
           <tr>
             <TableHeader>加算名</TableHeader>
             <TableHeader>単位数</TableHeader>
+            <TableHeader>目安金額</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
             <TableHeader>算定要件</TableHeader>
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell>緊急時訪問看護加算（Ⅰ）</TableCell><TableCell right>600単位</TableCell><TableCell>月1回</TableCell></tr>
-          <tr><TableCell>特別管理加算（1）</TableCell><TableCell right>500単位</TableCell><TableCell>月1回</TableCell></tr>
-          <tr><TableCell>特別管理加算（2）</TableCell><TableCell right>250単位</TableCell><TableCell>月1回</TableCell></tr>
-          <tr><TableCell>初回加算（Ⅰ）退院・施設退所後</TableCell><TableCell right>350単位</TableCell><TableCell>月1回（新設）</TableCell></tr>
-          <tr><TableCell>初回加算（Ⅱ）通常</TableCell><TableCell right>300単位</TableCell><TableCell>月1回</TableCell></tr>
-          <tr><TableCell>複数名訪問看護加算（Ⅰ）看護師等</TableCell><TableCell right>254単位</TableCell><TableCell>1回</TableCell></tr>
-          <tr><TableCell>複数名訪問看護加算（Ⅱ）その他</TableCell><TableCell right>201単位</TableCell><TableCell>1回</TableCell></tr>
-          <tr><TableCell>夜間・早朝加算</TableCell><TableCell right>所定単位数の25%</TableCell><TableCell>18〜22時/6〜8時</TableCell></tr>
-          <tr><TableCell>深夜加算</TableCell><TableCell right>所定単位数の50%</TableCell><TableCell>22〜6時</TableCell></tr>
-          <tr><TableCell>ターミナルケア加算</TableCell><TableCell right>2,500単位</TableCell><TableCell>死亡月</TableCell></tr>
-          <tr><TableCell className="font-medium text-emerald-700">処遇改善加算（令和8年6月〜）</TableCell><TableCell right className="text-emerald-700">所定単位数の1.8%</TableCell><TableCell>月単位で算定</TableCell></tr>
+          {[
+            { name: "緊急時訪問看護加算（Ⅰ）", u: 600, note: "月1回" },
+            { name: "特別管理加算（1）", u: 500, note: "月1回" },
+            { name: "特別管理加算（2）", u: 250, note: "月1回" },
+            { name: "初回加算（Ⅰ）退院・施設退所後", u: 350, note: "月1回（新設）" },
+            { name: "初回加算（Ⅱ）通常", u: 300, note: "月1回" },
+            { name: "複数名訪問看護加算（Ⅰ）看護師等", u: 254, note: "1回" },
+            { name: "複数名訪問看護加算（Ⅱ）その他", u: 201, note: "1回" },
+            { name: "ターミナルケア加算", u: 2500, note: "死亡月" },
+          ].map(r => (
+            <tr key={r.name}>
+              <TableCell>{r.name}</TableCell>
+              <TableCell right>{cu(r.u).units}</TableCell>
+              <TableCell right>{cu(r.u).full}</TableCell>
+              <TableCell right className="text-emerald-700">{cu(r.u).p10}</TableCell>
+              <TableCell right className="text-emerald-700">{cu(r.u).p20}</TableCell>
+              <TableCell right className="text-emerald-700">{cu(r.u).p30}</TableCell>
+              <TableCell>{r.note}</TableCell>
+            </tr>
+          ))}
         </tbody>
       </table>
+      <p className="text-xs text-stone-500">※ 夜間・早朝加算（25%）、深夜加算（50%）は訪問時間の単位数に応じて変動。処遇改善加算（1.8%）は月単位で算定。</p>
     </div>
   );
 }
 
 function PsychiatricFeeTable() {
+  // 医療保険は10円未満切り上げ
+  const cp = (yen: number) => ({
+    full: `${yen.toLocaleString()}円`,
+    p10: `${Math.ceil(yen * 0.1 / 10) * 10}円`,
+    p20: `${Math.ceil(yen * 0.2 / 10) * 10}円`,
+    p30: `${Math.ceil(yen * 0.3 / 10) * 10}円`,
+  });
   return (
     <div className="space-y-3">
-      <p className="text-xs text-stone-500">※ 精神疾患を有する者に対する訪問看護。令和8年度（2026年度）診療報酬改定後の点数です。</p>
+      <p className="text-xs text-stone-500">※ 精神疾患を有する者に対する訪問看護。令和8年度（2026年度）改定後の点数。自己負担額は10円未満切り上げ。</p>
 
-      <SectionTitle>精神科訪問看護基本療養費Ⅰ（通常・同一建物1人）</SectionTitle>
+      <SectionTitle>精神科訪問看護基本療養費Ⅰ（通常・同一建物１人）</SectionTitle>
       <table className="w-full border-collapse text-xs">
         <thead>
           <tr>
             <TableHeader>訪問時間</TableHeader>
-            <TableHeader>週3日目まで</TableHeader>
-            <TableHeader>週4日目以降</TableHeader>
+            <TableHeader>週３日目まで</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
+            <TableHeader>週４日目以降</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell>30分以上</TableCell><TableCell right>5,550円</TableCell><TableCell right>6,550円</TableCell></tr>
-          <tr><TableCell>30分未満</TableCell><TableCell right>4,250円</TableCell><TableCell right>5,100円</TableCell></tr>
+          {[
+            { label: "30分以上", w3: 5550, w4: 6550 },
+            { label: "30分未満", w3: 4250, w4: 5100 },
+          ].map(r => (
+            <tr key={r.label}>
+              <TableCell>{r.label}</TableCell>
+              <TableCell right>{cp(r.w3).full}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.w3).p10}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.w3).p20}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.w3).p30}</TableCell>
+              <TableCell right>{cp(r.w4).full}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.w4).p10}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.w4).p20}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.w4).p30}</TableCell>
+            </tr>
+          ))}
         </tbody>
       </table>
 
-      <SectionTitle>精神科訪問看護基本療養費Ⅱ（同一建物2人）</SectionTitle>
+      <SectionTitle>精神科訪問看護基本療養費Ⅱ（同一建物２人）</SectionTitle>
       <table className="w-full border-collapse text-xs">
         <thead>
           <tr>
             <TableHeader>訪問時間</TableHeader>
-            <TableHeader>週3日目まで</TableHeader>
-            <TableHeader>週4日目以降</TableHeader>
+            <TableHeader>週３日目まで</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
+            <TableHeader>週４日目以降</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell>30分以上</TableCell><TableCell right>5,550円</TableCell><TableCell right>6,550円</TableCell></tr>
-          <tr><TableCell>30分未満</TableCell><TableCell right>4,250円</TableCell><TableCell right>5,100円</TableCell></tr>
+          {[
+            { label: "30分以上", w3: 5550, w4: 6550 },
+            { label: "30分未満", w3: 4250, w4: 5100 },
+          ].map(r => (
+            <tr key={r.label}>
+              <TableCell>{r.label}</TableCell>
+              <TableCell right>{cp(r.w3).full}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.w3).p10}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.w3).p20}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.w3).p30}</TableCell>
+              <TableCell right>{cp(r.w4).full}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.w4).p10}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.w4).p20}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.w4).p30}</TableCell>
+            </tr>
+          ))}
         </tbody>
       </table>
 
-      <SectionTitle>精神科訪問看護基本療養費Ⅲ（同一建物3人以上）</SectionTitle>
+      <SectionTitle>精神科訪問看護基本療養費Ⅲ（同一建物３人以上）</SectionTitle>
       <table className="w-full border-collapse text-xs">
         <thead>
           <tr>
             <TableHeader>訪問時間</TableHeader>
-            <TableHeader>週3日目まで</TableHeader>
-            <TableHeader>週4日目以降</TableHeader>
+            <TableHeader>週３日目まで</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
+            <TableHeader>週４日目以降</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell>30分以上</TableCell><TableCell right>2,780円</TableCell><TableCell right>3,280円</TableCell></tr>
-          <tr><TableCell>30分未満</TableCell><TableCell right>2,130円</TableCell><TableCell right>2,550円</TableCell></tr>
+          {[
+            { label: "30分以上", w3: 2780, w4: 3280 },
+            { label: "30分未満", w3: 2130, w4: 2550 },
+          ].map(r => (
+            <tr key={r.label}>
+              <TableCell>{r.label}</TableCell>
+              <TableCell right>{cp(r.w3).full}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.w3).p10}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.w3).p20}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.w3).p30}</TableCell>
+              <TableCell right>{cp(r.w4).full}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.w4).p10}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.w4).p20}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.w4).p30}</TableCell>
+            </tr>
+          ))}
         </tbody>
       </table>
 
       <SectionTitle>精神科訪問看護基本療養費Ⅳ（外泊中）</SectionTitle>
       <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr>
+            <TableHeader>区分</TableHeader>
+            <TableHeader>金額</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
+          </tr>
+        </thead>
         <tbody>
-          <tr><TableCell>外泊中の訪問（週1回）</TableCell><TableCell right>8,500円</TableCell></tr>
+          <tr>
+            <TableCell>外泊中の訪問（週１回）</TableCell>
+            <TableCell right>8,500円</TableCell>
+            <TableCell right className="text-emerald-700">{cp(8500).p10}</TableCell>
+            <TableCell right className="text-emerald-700">{cp(8500).p20}</TableCell>
+            <TableCell right className="text-emerald-700">{cp(8500).p30}</TableCell>
+          </tr>
         </tbody>
       </table>
 
@@ -1343,14 +1617,34 @@ function PsychiatricFeeTable() {
           <tr>
             <TableHeader>区分</TableHeader>
             <TableHeader>月初日</TableHeader>
-            <TableHeader>2日目以降（20人未満）</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
+            <TableHeader>2日目以降</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell>通常</TableCell><TableCell right>7,710円</TableCell><TableCell right>3,010円</TableCell></tr>
-          <tr><TableCell>機能強化型1</TableCell><TableCell right>13,760円</TableCell><TableCell right>3,010円</TableCell></tr>
-          <tr><TableCell>機能強化型2</TableCell><TableCell right>10,460円</TableCell><TableCell right>3,010円</TableCell></tr>
-          <tr><TableCell>機能強化型3・4</TableCell><TableCell right>9,030円</TableCell><TableCell right>3,010円</TableCell></tr>
+          {[
+            { label: "通常", first: 7710, sub: 3010 },
+            { label: "機能強化型1", first: 13760, sub: 3010 },
+            { label: "機能強化型2", first: 10460, sub: 3010 },
+            { label: "機能強化型3・4", first: 9030, sub: 3010 },
+          ].map(r => (
+            <tr key={r.label}>
+              <TableCell>{r.label}</TableCell>
+              <TableCell right>{cp(r.first).full}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.first).p10}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.first).p20}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.first).p30}</TableCell>
+              <TableCell right>{cp(r.sub).full}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.sub).p10}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.sub).p20}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.sub).p30}</TableCell>
+            </tr>
+          ))}
         </tbody>
       </table>
 
@@ -1360,24 +1654,38 @@ function PsychiatricFeeTable() {
           <tr>
             <TableHeader>加算名</TableHeader>
             <TableHeader>金額</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
             <TableHeader>算定要件</TableHeader>
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell>精神科緊急訪問看護加算</TableCell><TableCell right>2,650円</TableCell><TableCell>定期外緊急訪問</TableCell></tr>
-          <tr><TableCell>長時間精神科訪問看護加算</TableCell><TableCell right>5,200円</TableCell><TableCell>週1回（条件下週3回）</TableCell></tr>
-          <tr><TableCell>複数名精神科訪問看護加算（看護師等）</TableCell><TableCell right>4,500円</TableCell><TableCell>2名同行</TableCell></tr>
-          <tr><TableCell>複数名精神科訪問看護加算（看護補助者）</TableCell><TableCell right>3,000円</TableCell><TableCell>週1回まで</TableCell></tr>
-          <tr><TableCell>精神科複数回訪問加算（1日2回）</TableCell><TableCell right>4,500円</TableCell><TableCell>厚生労働大臣が定める状態</TableCell></tr>
-          <tr><TableCell>精神科複数回訪問加算（1日3回以上）</TableCell><TableCell right>8,000円</TableCell><TableCell>特別訪問看護指示書</TableCell></tr>
-          <tr><TableCell>夜間・早朝訪問看護加算</TableCell><TableCell right>2,100円</TableCell><TableCell>18〜22時/6〜8時</TableCell></tr>
-          <tr><TableCell>深夜訪問看護加算</TableCell><TableCell right>4,200円</TableCell><TableCell>22〜6時</TableCell></tr>
-          <tr><TableCell>24時間対応体制加算 イ</TableCell><TableCell right>6,800円</TableCell><TableCell>月1回</TableCell></tr>
-          <tr><TableCell>24時間対応体制加算 ロ</TableCell><TableCell right>6,520円</TableCell><TableCell>月1回</TableCell></tr>
-          <tr><TableCell>特別管理加算（1）</TableCell><TableCell right>5,000円</TableCell><TableCell>月1回</TableCell></tr>
-          <tr><TableCell>特別管理加算（2）</TableCell><TableCell right>2,500円</TableCell><TableCell>月1回</TableCell></tr>
-          <tr><TableCell>訪問看護ターミナルケア療養費1</TableCell><TableCell right>25,000円</TableCell><TableCell>在宅死亡月</TableCell></tr>
-          <tr><TableCell>訪問看護ターミナルケア療養費2</TableCell><TableCell right>10,000円</TableCell><TableCell>特養等死亡月</TableCell></tr>
+          {[
+            { name: "精神科緊急訪問看護加算", y: 2650, note: "定期外緊急訪問" },
+            { name: "長時間精神科訪問看護加算", y: 5200, note: "週１回（条件下週３回）" },
+            { name: "複数名精神科訪問看護加算（看護師等）", y: 4500, note: "2名同行" },
+            { name: "複数名精神科訪問看護加算（看護補助者）", y: 3000, note: "週１回まで" },
+            { name: "精神科複数回訪問加算（1日２回）", y: 4500, note: "厚生労働大臣が定める状態" },
+            { name: "精神科複数回訪問加算（1日３回以上）", y: 8000, note: "特別訪問看護指示書" },
+            { name: "夜間・早朝訪問看護加算", y: 2100, note: "18〜22時/6〜8時" },
+            { name: "深夜訪問看護加算", y: 4200, note: "22〜6時" },
+            { name: "24時間対応体制加算 イ", y: 6800, note: "月１回" },
+            { name: "24時間対応体制加算 ロ", y: 6520, note: "月１回" },
+            { name: "特別管理加算（１）", y: 5000, note: "月１回" },
+            { name: "特別管理加算（２）", y: 2500, note: "月１回" },
+            { name: "訪問看護ターミナルケア療養費1", y: 25000, note: "在宅死亡月" },
+            { name: "訪問看護ターミナルケア療養費2", y: 10000, note: "特養等死亡月" },
+          ].map(r => (
+            <tr key={r.name}>
+              <TableCell>{r.name}</TableCell>
+              <TableCell right>{cp(r.y).full}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.y).p10}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.y).p20}</TableCell>
+              <TableCell right className="text-emerald-700">{cp(r.y).p30}</TableCell>
+              <TableCell>{r.note}</TableCell>
+            </tr>
+          ))}
         </tbody>
       </table>
 
