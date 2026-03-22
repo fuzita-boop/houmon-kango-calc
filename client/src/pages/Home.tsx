@@ -755,15 +755,15 @@ interface PrintPreviewProps {
 }
 
 function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
-  const { year, month, monthlyResults, totalAmount, totalCopay, patientName, stationName } = store;
-  const printDate = new Date().toLocaleDateString("ja-JP");
+  const { year, month, monthlyResults, totalAmount, totalCopay } = store;
   const handlePrint = () => window.print();
   const visitCountLabels = ["初回","2回目","3回目","4回目","5回目","6回目","7回目","8回目","9回目","10回目"];
 
   return (
     <div id="print-root" className="fixed inset-0 z-50 bg-stone-800/80 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col print:shadow-none print:rounded-none print:max-h-none print:w-full print:max-w-none">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200 shrink-0">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        {/* ヘッダー（印刷非表示） */}
+        <div className="no-print flex items-center justify-between px-4 py-3 border-b border-stone-200 shrink-0">
           <h2 className="font-bold text-stone-800">印刷プレビュー</h2>
           <div className="flex gap-2">
             <button
@@ -787,46 +787,43 @@ function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          <div id="print-content" className="bg-white border border-stone-200 rounded-lg p-6 space-y-4 text-sm">
-            <div className="text-center border-b-2 border-stone-800 pb-3">
-              <h1 className="text-lg font-bold text-stone-900">訪問看護 料金概算のお知らせ</h1>
-              <p className="text-xs text-stone-500 mt-1">令和8年度（2026年度）診療報酬改定 準拠</p>
+          <div id="print-content" className="bg-white border border-stone-200 rounded-lg p-5 text-sm">
+            {/* タイトル */}
+            <div className="text-center border-b-2 border-stone-800 pb-2 mb-3">
+              <h1 className="text-base font-bold text-stone-900">診療報酬明細書（{year}年{month}月分）</h1>
+              <p className="text-xs text-stone-500 mt-0.5">令和8年度（2026年度）診療報酬改定 準拠</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div><span className="text-stone-500">ご利用者様：</span><span className="font-bold ml-1">{patientName || "　　　　　　　　　"} 様</span></div>
-              <div><span className="text-stone-500">算定月：</span><span className="font-bold ml-1">{year}年{month}月</span></div>
-              <div><span className="text-stone-500">事業所名：</span><span className="font-bold ml-1">{stationName || "　　　　　　　　　"}</span></div>
-              <div><span className="text-stone-500">発行日：</span><span className="font-bold ml-1">{printDate}</span></div>
-            </div>
-
-            <Separator />
-
-            <div className="bg-stone-50 rounded-lg p-3">
-              <div className="flex justify-between items-center">
-                <span className="font-bold text-stone-800">訪問回数</span>
-                <span className="font-bold">{monthlyResults.length}回</span>
-              </div>
-              <div className="flex justify-between items-center mt-1">
-                <span className="font-bold text-stone-800">合計金額（概算）</span>
-                <span className="font-bold text-base">{formatYen(totalAmount)}</span>
-              </div>
-              <div className="flex justify-between items-center mt-1 text-amber-700">
-                <span className="font-bold">患者様ご負担額（概算）</span>
-                <span className="font-bold text-base">{formatYen(totalCopay)}</span>
+            {/* 月次サマリー */}
+            <div className="flex gap-4 mb-3 text-xs">
+              <div className="flex-1 bg-stone-50 rounded p-2">
+                <div className="flex justify-between">
+                  <span className="text-stone-500">診療回数</span>
+                  <span className="font-bold">{monthlyResults.length}回</span>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span className="text-stone-500">合計金額（概算）</span>
+                  <span className="font-bold">{formatYen(totalAmount)}</span>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span className="text-stone-600 font-medium">患者様ご負担額（概算）</span>
+                  <span className="font-bold text-amber-700">{formatYen(totalCopay)}</span>
+                </div>
               </div>
             </div>
 
+            {/* 診療日別内訳 */}
             <div>
-              <h3 className="font-bold text-stone-800 mb-2">訪問日別内訳</h3>
+              <h3 className="font-bold text-stone-800 text-xs mb-1.5 border-l-4 border-amber-500 pl-2">診療日別内訳</h3>
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-stone-100">
-                    <th className="border border-stone-300 px-2 py-1.5 text-left font-bold">訪問日</th>
-                    <th className="border border-stone-300 px-2 py-1.5 text-left font-bold">回数</th>
-                    <th className="border border-stone-300 px-2 py-1.5 text-left font-bold">種別</th>
-                    <th className="border border-stone-300 px-2 py-1.5 text-right font-bold">金額</th>
-                    <th className="border border-stone-300 px-2 py-1.5 text-right font-bold">ご負担額</th>
+                    <th className="border border-stone-300 px-1.5 py-1 text-left font-bold">診療日</th>
+                    <th className="border border-stone-300 px-1.5 py-1 text-left font-bold">回数</th>
+                    <th className="border border-stone-300 px-1.5 py-1 text-left font-bold">種別</th>
+                    <th className="border border-stone-300 px-1.5 py-1 text-left font-bold">料金内訳</th>
+                    <th className="border border-stone-300 px-1.5 py-1 text-right font-bold">金額</th>
+                    <th className="border border-stone-300 px-1.5 py-1 text-right font-bold">ご負担額</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -836,48 +833,43 @@ function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
                     const dow = weekdays[new Date(y, m - 1, d).getDay()];
                     const conf = MODE_CONFIG[r.insuranceMode];
                     const visitLabel = visitCountLabels[idx] ?? `${idx + 1}回目`;
+                    const breakdownText = r.breakdown
+                      .map(b => `${b.label}：${formatYen(b.yen)}`)
+                      .join("\n");
                     return (
-                      <tr key={r.id} className="hover:bg-stone-50">
-                        <td className="border border-stone-300 px-2 py-1.5">{m}/{d}（{dow}）</td>
-                        <td className="border border-stone-300 px-2 py-1.5">{visitLabel}</td>
-                        <td className="border border-stone-300 px-2 py-1.5">{conf.label}</td>
-                        <td className="border border-stone-300 px-2 py-1.5 text-right font-medium">{formatYen(r.totalYen)}</td>
-                        <td className="border border-stone-300 px-2 py-1.5 text-right font-medium">{formatYen(r.copayAmount)}</td>
+                      <tr key={r.id}>
+                        <td className="border border-stone-300 px-1.5 py-1 whitespace-nowrap">{m}/{d}（{dow}）</td>
+                        <td className="border border-stone-300 px-1.5 py-1 whitespace-nowrap">{visitLabel}</td>
+                        <td className="border border-stone-300 px-1.5 py-1 whitespace-nowrap">{conf.shortLabel}</td>
+                        <td className="border border-stone-300 px-1.5 py-1">
+                          <div className="text-xs text-stone-600 leading-relaxed whitespace-pre-line">{breakdownText}</div>
+                        </td>
+                        <td className="border border-stone-300 px-1.5 py-1 text-right font-medium whitespace-nowrap">{formatYen(r.totalYen)}</td>
+                        <td className="border border-stone-300 px-1.5 py-1 text-right font-medium whitespace-nowrap">{formatYen(r.copayAmount)}</td>
                       </tr>
                     );
                   })}
                 </tbody>
                 <tfoot>
                   <tr className="bg-stone-100 font-bold">
-                    <td colSpan={3} className="border border-stone-300 px-2 py-1.5">合計</td>
-                    <td className="border border-stone-300 px-2 py-1.5 text-right">{formatYen(totalAmount)}</td>
-                    <td className="border border-stone-300 px-2 py-1.5 text-right">{formatYen(totalCopay)}</td>
+                    <td colSpan={4} className="border border-stone-300 px-1.5 py-1">合計</td>
+                    <td className="border border-stone-300 px-1.5 py-1 text-right">{formatYen(totalAmount)}</td>
+                    <td className="border border-stone-300 px-1.5 py-1 text-right">{formatYen(totalCopay)}</td>
                   </tr>
                 </tfoot>
               </table>
             </div>
 
-            <div className="text-xs text-stone-500 border border-stone-200 rounded p-3 space-y-1">
+            <div className="text-xs text-stone-500 border border-stone-200 rounded p-2 mt-3 space-y-0.5">
               <p className="font-bold text-stone-700">【ご注意】</p>
               <p>・本書は概算であり、実際の請求額と異なる場合があります。</p>
               <p>・患者様ご負担額は高額療養費制度等の適用前の概算です。</p>
-              <p>・公費負担医療の月額上限額は、他の医療機関・薬局との合算で管理されます。</p>
               <p>・令和8年度（2026年度）診療報酬改定・令和6年度介護報酬改定に基づき算定しています。</p>
             </div>
           </div>
         </div>
       </div>
 
-      <style>{`
-        @media print {
-          body > *:not(#print-root) { display: none !important; }
-          #print-root { background: white !important; position: static !important; display: block !important; padding: 0 !important; }
-          #print-root > div { box-shadow: none !important; border-radius: 0 !important; max-height: none !important; width: 100% !important; max-width: none !important; }
-          #print-root > div > div:first-child { display: none !important; }
-          #print-root > div > div:last-child { overflow: visible !important; padding: 0 !important; }
-          #print-content { border: none !important; padding: 12mm 15mm !important; box-shadow: none !important; }
-        }
-      `}</style>
     </div>
   );
 }
@@ -906,9 +898,9 @@ function FeeTablePreview({ stationName, onClose }: FeeTablePreviewProps) {
 
   return (
     <div id="print-root" className="fixed inset-0 z-50 bg-stone-800/80 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col print:shadow-none print:rounded-none print:max-h-none print:w-full print:max-w-none">
-        {/* ヘッダー */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-stone-200 shrink-0">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+        {/* ヘッダー（印刷非表示） */}
+        <div className="no-print flex items-center justify-between px-4 py-3 border-b border-stone-200 shrink-0">
           <h2 className="font-bold text-stone-800">契約書用 利用料金表</h2>
           <div className="flex gap-2">
             <button
@@ -924,8 +916,8 @@ function FeeTablePreview({ stationName, onClose }: FeeTablePreviewProps) {
           </div>
         </div>
 
-        {/* 種別タブ */}
-        <div className="flex border-b border-stone-200 shrink-0 overflow-x-auto print:hidden">
+        {/* 種別タブ（印刷非表示） */}
+        <div className="no-print flex border-b border-stone-200 shrink-0 overflow-x-auto">
           {(["medical", "care", "preventive", "psychiatric"] as FeeTableMode[]).map((m) => (
             <button
               key={m}
@@ -954,12 +946,6 @@ function FeeTablePreview({ stationName, onClose }: FeeTablePreviewProps) {
               <p className="text-xs text-stone-500 mt-0.5">令和8年度（2026年度）診療報酬改定 準拠</p>
             </div>
 
-            {/* 事業所情報 */}
-            <div className="flex justify-between text-xs">
-              <div><span className="text-stone-500">事業所名：</span><span className="font-bold">{stationName || "　　　　　　　　　　　　"}</span></div>
-              <div><span className="text-stone-500">作成日：</span><span className="font-bold">{printDate}</span></div>
-            </div>
-
             {/* 医療保険 料金表 */}
             {selectedMode === "medical" && <MedicalFeeTable />}
             {selectedMode === "care" && <CareFeeTable />}
@@ -983,17 +969,6 @@ function FeeTablePreview({ stationName, onClose }: FeeTablePreviewProps) {
         </div>
       </div>
 
-      <style>{`
-        @media print {
-          body > *:not(#print-root) { display: none !important; }
-          #print-root { background: white !important; position: static !important; display: block !important; padding: 0 !important; }
-          #print-root > div { box-shadow: none !important; border-radius: 0 !important; max-height: none !important; width: 100% !important; max-width: none !important; }
-          #print-root > div > div:first-child { display: none !important; }
-          #print-root > div > div:nth-child(2) { display: none !important; }
-          #print-root > div > div:last-child { overflow: visible !important; padding: 0 !important; }
-          #print-content { border: none !important; padding: 12mm 15mm !important; box-shadow: none !important; }
-        }
-      `}</style>
     </div>
   );
 }
@@ -1939,17 +1914,28 @@ export default function Home() {
       </div>
 
       {/* 月次集計 固定ボタン（訪問日が1件以上の時） */}
-      {store.monthlyResults.length > 0 && (
-        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg px-4 pb-4 pt-2 bg-gradient-to-t from-stone-100 to-transparent z-20">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg px-4 pb-4 pt-2 bg-gradient-to-t from-stone-100 to-transparent z-20">
+        {store.monthlyResults.length > 0 && (
           <button
             onClick={() => setShowPrint(true)}
-            className="w-full py-4 bg-amber-600 text-white rounded-2xl font-bold text-base flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all"
+            className="w-full py-4 bg-amber-600 text-white rounded-2xl font-bold text-base flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all mb-2"
           >
             <ClipboardListIcon className="w-5 h-5" />
             月次集計を確認する（{store.monthlyResults.length}回 / {formatYen(store.totalAmount)}）
           </button>
-        </div>
-      )}
+        )}
+        <button
+          onClick={() => {
+            if (window.confirm("全データをリセットします。この操作は元に戻せません。よろしいですか？")) {
+              store.clearAll();
+            }
+          }}
+          className="w-full py-2.5 bg-white text-stone-500 border border-stone-300 rounded-xl text-sm font-medium flex items-center justify-center gap-1.5 hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-all active:scale-95 shadow-sm"
+        >
+          <XIcon className="w-4 h-4" />
+          全データをリセット
+        </button>
+      </div>
 
       {/* 訪問日詳細パネル（ウィザード） */}
       {store.selectedDate && selectedVisitDay && (

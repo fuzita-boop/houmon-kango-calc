@@ -72,6 +72,7 @@ export interface VisitDayResult extends VisitDay {
   bukkaRyo: number;     // 物価対応料（円）
   shoguKaizenYen: number; // 処遇改善加算（円）
   baseupRyo: number;    // ベースアップ評価料（円）
+  breakdown: { label: string; yen: number }[]; // 料金内訳
 }
 
 // ============================================================
@@ -238,14 +239,24 @@ function calcVisitDayResult(day: VisitDay): VisitDayResult {
   let bukkaRyo = 0;
   let shoguKaizenYen = 0;
   let baseupRyo = 0;
+  const breakdown: { label: string; yen: number }[] = [];
 
   if (day.insuranceMode === "medical") {
     const result = calculate(day.medicalInput);
     total = result.total;
+    // 内訳項目をbreakdownに変換
+    result.items.forEach(item => {
+      if (!item.disabled) breakdown.push({ label: item.label, yen: item.amount });
+    });
     // 物価対応料（type1）
     bukkaRyo = calcBukkaTaiouRyo(day.bukkaTaiouType, day.medicalInput.isFirstVisitOfMonth);
+    if (bukkaRyo > 0) breakdown.push({ label: "診療報酬物価対応料", yen: bukkaRyo });
     // ベースアップ評価料
     baseupRyo = day.medicalBaseupType !== "none" ? MEDICAL_BASEUP_FEE[day.medicalBaseupType as "type1" | "type2"] : 0;
+    if (baseupRyo > 0) {
+      const baseupLabel = day.medicalBaseupType === "type1" ? "診療報酬ベースアップ評価料（1）" : "診療報酬ベースアップ評価料（2）";
+      breakdown.push({ label: baseupLabel, yen: baseupRyo });
+    }
     totalYen = result.total + bukkaRyo + baseupRyo;
     const copay = calcCopay(totalYen, day.copayInput);
     copayAmount = copay.amount;
@@ -253,11 +264,16 @@ function calcVisitDayResult(day: VisitDay): VisitDayResult {
     const result = calculateCare(day.careInput);
     total = result.totalUnit ?? 0;
     const baseYen = result.totalYen ?? 0;
+    // 内訳項目をbreakdownに変換（単位数→円換算）
+    const rate = CARE_REGION_RATES[day.careInput.regionRate];
+    result.items.forEach(item => {
+      if (!item.disabled) breakdown.push({ label: item.label, yen: Math.round(item.amount * rate) });
+    });
     // 処遇改善加算
     if (day.applyShoguKaizen) {
-      const rate = CARE_REGION_RATES[day.careInput.regionRate];
       const kaizen = calcShoguKaizenKasan(total, rate);
       shoguKaizenYen = kaizen.yen;
+      if (shoguKaizenYen > 0) breakdown.push({ label: "処遇改善加算（1.8%）", yen: shoguKaizenYen });
     }
     totalYen = baseYen + shoguKaizenYen;
     const copay = calcCopay(totalYen, { ...day.copayInput, insuranceType: "care" });
@@ -266,11 +282,16 @@ function calcVisitDayResult(day: VisitDay): VisitDayResult {
     const result = calculatePreventiveCare(day.preventiveCareInput);
     total = result.totalUnit ?? 0;
     const baseYen = result.totalYen ?? 0;
+    // 内訳項目をbreakdownに変換（単位数→円換算）
+    const rate = CARE_REGION_RATES[day.preventiveCareInput.regionRate];
+    result.items.forEach(item => {
+      if (!item.disabled) breakdown.push({ label: item.label, yen: Math.round(item.amount * rate) });
+    });
     // 処遇改善加算
     if (day.applyShoguKaizen) {
-      const rate = CARE_REGION_RATES[day.preventiveCareInput.regionRate];
       const kaizen = calcShoguKaizenKasan(total, rate);
       shoguKaizenYen = kaizen.yen;
+      if (shoguKaizenYen > 0) breakdown.push({ label: "処遇改善加算（1.8%）", yen: shoguKaizenYen });
     }
     totalYen = baseYen + shoguKaizenYen;
     const copay = calcCopay(totalYen, { ...day.copayInput, insuranceType: "care" });
@@ -278,8 +299,13 @@ function calcVisitDayResult(day: VisitDay): VisitDayResult {
   } else if (day.insuranceMode === "psychiatric") {
     const result = calculatePsychiatric(day.psychInput);
     total = result.total;
+    // 内訳項目をbreakdownに変換
+    result.items.forEach(item => {
+      if (!item.disabled) breakdown.push({ label: item.label, yen: item.amount });
+    });
     // 物価対応料（type2）
     bukkaRyo = calcBukkaTaiouRyo(day.bukkaTaiouType, day.psychInput.isFirstVisitOfMonth);
+    if (bukkaRyo > 0) breakdown.push({ label: "診療報酬物価対応料", yen: bukkaRyo });
     totalYen = result.total + bukkaRyo;
     // 自立支援医療の月額上限管理
     const baseCopay = calcCopay(totalYen, day.copayInput);
@@ -291,7 +317,7 @@ function calcVisitDayResult(day: VisitDay): VisitDayResult {
     }
   }
 
-  return { ...day, total, totalYen, copayAmount, bukkaRyo, shoguKaizenYen, baseupRyo };
+  return { ...day, total, totalYen, copayAmount, bukkaRyo, shoguKaizenYen, baseupRyo, breakdown };
 }
 
 // ============================================================
@@ -420,6 +446,13 @@ export function useVisitStore() {
     setSelectedDate(null);
   }, [month]);
 
+  const clearAll = useCallback(() => {
+    setVisitDays([]);
+    setSelectedDate(null);
+    setPatientName("");
+    setStationName("");
+  }, []);
+
   return {
     year, month,
     globalInsuranceMode, setGlobalInsuranceMode,
@@ -429,6 +462,6 @@ export function useVisitStore() {
     patientName, setPatientName,
     stationName, setStationName,
     getVisitDay, toggleVisitDay, updateVisitDay, copyPrevConditions, updateCopayForAll,
-    prevMonth, nextMonth,
+    prevMonth, nextMonth, clearAll,
   };
 }
