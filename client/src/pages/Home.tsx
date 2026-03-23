@@ -988,16 +988,16 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 function MedicalFeeTable() {
-  // 1割・2割・3割を計算するヘルパー
+  // 1割・2割・3割を計算するヘルパー（5円未満切り捨て＝四捨五入5円単位）
   const c = (yen: number) => ({
     full: `${yen.toLocaleString()}円`,
-    p10: `${Math.ceil(yen * 0.1 / 10) * 10}円`,
-    p20: `${Math.ceil(yen * 0.2 / 10) * 10}円`,
-    p30: `${Math.ceil(yen * 0.3 / 10) * 10}円`,
+    p10: `${Math.round(yen * 0.1 / 5) * 5}円`,
+    p20: `${Math.round(yen * 0.2 / 5) * 5}円`,
+    p30: `${Math.round(yen * 0.3 / 5) * 5}円`,
   });
   return (
     <div className="space-y-3">
-      <p className="text-xs text-stone-500">※ 自己負担額は10円未満切り上げ。高額療養費・公費負担は別途適用されます。</p>
+      <p className="text-xs text-stone-500">※ 自己負担額は5円未満切り捨て（四捨五入）。高額療養費・公費負担は別途適用されます。</p>
 
       <SectionTitle>訪問看護基本療養費Ⅰ（同一建物以外・従来型）</SectionTitle>
       <table className="w-full border-collapse text-xs">
@@ -1216,16 +1216,17 @@ function MedicalFeeTable() {
 }
 
 function CareFeeTable() {
+  // 介護保険：切り上げなし（円単位切り捨て）
   const cu = (units: number) => ({
     units: `${units.toLocaleString()}単位`,
     full: `${(units * 10).toLocaleString()}円`,
-    p10: `${Math.ceil(units * 10 * 0.1 / 10) * 10}円`,
-    p20: `${Math.ceil(units * 10 * 0.2 / 10) * 10}円`,
-    p30: `${Math.ceil(units * 10 * 0.3 / 10) * 10}円`,
+    p10: `${Math.floor(units * 10 * 0.1)}円`,
+    p20: `${Math.floor(units * 10 * 0.2)}円`,
+    p30: `${Math.floor(units * 10 * 0.3)}円`,
   });
   return (
     <div className="space-y-3">
-      <p className="text-xs text-stone-500">※ 単位数は令和6年度改定後。目安金額は1単位＝10円換算。実際は地域区分単価により異なります。自己負担額は10円未満切り上げ。</p>
+      <p className="text-xs text-stone-500">※ 単位数は令和6年度改定後。目安金額は1単位＝10円換算。実際は地域区分単価により異なります。自己負担額は円単位切り捨て。</p>
 
       <SectionTitle>訪問看護費（訪問看護ステーション）</SectionTitle>
       <table className="w-full border-collapse text-xs">
@@ -1241,11 +1242,11 @@ function CareFeeTable() {
         </thead>
         <tbody>
           {[
-            { label: "20分未満", u: 313 },
-            { label: "30分未満", u: 470 },
-            { label: "30分以上1時間未満", u: 821 },
-            { label: "1時間以上1時間＀30分未満", u: 1125 },
-            { label: "理学療法士等による訪問", u: 293 },
+            { label: "20分未満", u: 314 },
+            { label: "30分未満", u: 471 },
+            { label: "30分以上1時間未満", u: 823 },
+            { label: "1時間以上1時間30分未満", u: 1128 },
+            { label: "理学療法士等による訪問", u: 294 },
           ].map(r => (
             <tr key={r.label}>
               <TableCell>{r.label}</TableCell>
@@ -1273,11 +1274,11 @@ function CareFeeTable() {
         </thead>
         <tbody>
           {[
-            { label: "20分未満", u: 265 },
-            { label: "30分未満", u: 398 },
-            { label: "30分以上1時間未満", u: 573 },
-            { label: "1時間以上1時間＀30分未満", u: 838 },
-            { label: "理学療法士等による訪問", u: 265 },
+            { label: "20分未満", u: 266 },
+            { label: "30分未満", u: 399 },
+            { label: "30分以上1時間未満", u: 574 },
+            { label: "1時間以上1時間30分未満", u: 844 },
+            { label: "理学療法士等による訪問", u: 266 },
           ].map(r => (
             <tr key={r.label}>
               <TableCell>{r.label}</TableCell>
@@ -1331,16 +1332,17 @@ function CareFeeTable() {
 }
 
 function PreventiveFeeTable() {
+  // 介護予防：切り上げなし（円単位切り捨て）
   const cu = (units: number) => ({
     units: `${units.toLocaleString()}単位`,
     full: `${(units * 10).toLocaleString()}円`,
-    p10: `${Math.ceil(units * 10 * 0.1 / 10) * 10}円`,
-    p20: `${Math.ceil(units * 10 * 0.2 / 10) * 10}円`,
-    p30: `${Math.ceil(units * 10 * 0.3 / 10) * 10}円`,
+    p10: `${Math.floor(units * 10 * 0.1)}円`,
+    p20: `${Math.floor(units * 10 * 0.2)}円`,
+    p30: `${Math.floor(units * 10 * 0.3)}円`,
   });
   return (
     <div className="space-y-3">
-      <p className="text-xs text-stone-500">※ 要支援1・2の方が対象です。単位数は令和6年度改定後。目安金額は1単位＝10円換算。自己負担額は10円未満切り上げ。</p>
+      <p className="text-xs text-stone-500">※ 要支援1・2の方が対象です。単位数は令和6年度改定後。目安金額は1単位＝10円換算。自己負担額は円単位切り捨て。</p>
 
       <SectionTitle>介護予防訪問看護費（訪問看護ステーション）</SectionTitle>
       <table className="w-full border-collapse text-xs">
@@ -1448,16 +1450,16 @@ function PreventiveFeeTable() {
 }
 
 function PsychiatricFeeTable() {
-  // 医療保険は10円未満切り上げ
+  // 医療保険は5円未満切り捨て（四捨五入5円単位）
   const cp = (yen: number) => ({
     full: `${yen.toLocaleString()}円`,
-    p10: `${Math.ceil(yen * 0.1 / 10) * 10}円`,
-    p20: `${Math.ceil(yen * 0.2 / 10) * 10}円`,
-    p30: `${Math.ceil(yen * 0.3 / 10) * 10}円`,
+    p10: `${Math.round(yen * 0.1 / 5) * 5}円`,
+    p20: `${Math.round(yen * 0.2 / 5) * 5}円`,
+    p30: `${Math.round(yen * 0.3 / 5) * 5}円`,
   });
   return (
     <div className="space-y-3">
-      <p className="text-xs text-stone-500">※ 精神疾患を有する者に対する訪問看護。令和8年度（2026年度）改定後の点数。自己負担額は10円未満切り上げ。</p>
+      <p className="text-xs text-stone-500">※ 精神疾患を有する者に対する訪問看護。令和8年度（2026年度）改定後の点数。自己負担額は5円未満切り捨て（四捨五入）。</p>
 
       <SectionTitle>精神科訪問看護基本療養費Ⅰ（通常・同一建物１人）</SectionTitle>
       <table className="w-full border-collapse text-xs">
