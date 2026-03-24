@@ -157,50 +157,118 @@
   @media print {
     /*
      * 印刷時は #print-content のみ表示する。
-     * #print-root は Reactの #root 内にネストされているため、
-     * body > * を非表示にすると #root ごと消えてしまう。
-     * そのため visibility ベースのアプローチを使用する。
+     * A4 (210mm x 297mm) に均等に収まるよう設定。
+     * visibility ベースで #root ごと消えないようにする。
      */
-    body {
+    @page {
+      size: A4 portrait;
+      margin: 12mm 15mm;
+    }
+
+    html, body {
       background: white !important;
-      font-size: 11pt;
       visibility: hidden !important;
+      margin: 0 !important;
+      padding: 0 !important;
     }
-    #print-content {
-      visibility: visible !important;
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100% !important;
-      padding: 12mm 15mm !important;
-      border: none !important;
-      box-shadow: none !important;
-      font-size: 10pt !important;
-      line-height: 1.5 !important;
-      color: #000 !important;
-      background: white !important;
-    }
+
+    /* print-content とその子孫だけ表示 */
+    #print-content,
     #print-content * {
       visibility: visible !important;
     }
+
+    /* A4 実寸レイアウト */
+    #print-content {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 180mm !important;   /* 210mm - 左右15mm×2 */
+      min-height: auto !important;
+      max-height: none !important;
+      overflow: visible !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      background: white !important;
+      color: #000 !important;
+      font-size: 9pt !important;
+      line-height: 1.45 !important;
+    }
+
+    /* テーブル */
     #print-content table {
       width: 100% !important;
       border-collapse: collapse !important;
+      table-layout: auto !important;
     }
     #print-content th,
     #print-content td {
-      border: 1px solid #999 !important;
-      padding: 3px 6px !important;
-      font-size: 9pt !important;
+      border: 0.5pt solid #888 !important;
+      padding: 2pt 4pt !important;
+      font-size: 8pt !important;
+      line-height: 1.4 !important;
+      word-break: break-all !important;
     }
+    #print-content thead tr {
+      background: #f0f0f0 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    #print-content tfoot tr {
+      background: #f0f0f0 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    /* 見出し */
     #print-content h1 {
-      font-size: 14pt !important;
+      font-size: 13pt !important;
       font-weight: bold !important;
+      margin-bottom: 4pt !important;
     }
     #print-content h3 {
-      font-size: 11pt !important;
+      font-size: 9pt !important;
       font-weight: bold !important;
+      margin-top: 8pt !important;
+      margin-bottom: 3pt !important;
     }
+
+    /* サマリーボックス */
+    #print-content .print-summary {
+      display: flex !important;
+      gap: 6pt !important;
+      margin-bottom: 6pt !important;
+    }
+    #print-content .print-summary > div {
+      flex: 1 !important;
+      border: 0.5pt solid #ccc !important;
+      padding: 4pt 6pt !important;
+      background: #fafafa !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    /* 注意書き */
+    #print-content .print-notice {
+      margin-top: 6pt !important;
+      border: 0.5pt solid #ccc !important;
+      padding: 4pt 6pt !important;
+      font-size: 7pt !important;
+      line-height: 1.5 !important;
+    }
+
+    /* 改ページ制御 */
+    #print-content tr {
+      page-break-inside: avoid !important;
+    }
+    #print-content .print-section {
+      page-break-inside: avoid !important;
+    }
+
+    /* 非表示 */
     .no-print {
       display: none !important;
       visibility: hidden !important;
@@ -208,10 +276,6 @@
     .print-only {
       display: block !important;
       visibility: visible !important;
-    }
-    @page {
-      size: A4 portrait;
-      margin: 0;
     }
   }
 

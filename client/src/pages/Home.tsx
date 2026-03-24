@@ -790,12 +790,11 @@ function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
           <div id="print-content" className="bg-white border border-stone-200 rounded-lg p-5 text-sm">
             {/* タイトル */}
             <div className="text-center border-b-2 border-stone-800 pb-2 mb-3">
-              <h1 className="text-base font-bold text-stone-900">診療報酬明細書（{year}年{month}月分）</h1>
-              <p className="text-xs text-stone-500 mt-0.5">令和8年度（2026年度）診療報酬改定 準拠</p>
+              <h1 className="text-base font-bold text-stone-900">訪問看護 診療報酬明細書（{year}年{month}月分）</h1>
             </div>
 
-            {/* 月次サマリー */}
-            <div className="flex gap-4 mb-3 text-xs">
+            {/* 月次サマリー（印刷時は横並び） */}
+            <div className="print-summary flex gap-4 mb-3 text-xs">
               <div className="flex-1 bg-stone-50 rounded p-2">
                 <div className="flex justify-between">
                   <span className="text-stone-500">診療回数</span>
@@ -805,25 +804,28 @@ function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
                   <span className="text-stone-500">合計金額（概算）</span>
                   <span className="font-bold">{formatYen(totalAmount)}</span>
                 </div>
-                <div className="flex justify-between mt-1">
+              </div>
+              <div className="flex-1 bg-amber-50 rounded p-2">
+                <div className="flex justify-between">
                   <span className="text-stone-600 font-medium">患者様ご負担額（概算）</span>
-                  <span className="font-bold text-amber-700">{formatYen(totalCopay)}</span>
+                  <span className="font-bold text-amber-700 text-base">{formatYen(totalCopay)}</span>
                 </div>
+                <div className="text-xs text-stone-400 mt-1">高額療養費・公費負担制度適用前の概算</div>
               </div>
             </div>
 
             {/* 診療日別内訳 */}
-            <div>
+            <div className="print-section">
               <h3 className="font-bold text-stone-800 text-xs mb-1.5 border-l-4 border-amber-500 pl-2">診療日別内訳</h3>
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-stone-100">
-                    <th className="border border-stone-300 px-1.5 py-1 text-left font-bold">診療日</th>
-                    <th className="border border-stone-300 px-1.5 py-1 text-left font-bold">回数</th>
-                    <th className="border border-stone-300 px-1.5 py-1 text-left font-bold">種別</th>
+                    <th className="border border-stone-300 px-1.5 py-1 text-left font-bold" style={{width:'10%'}}>診療日</th>
+                    <th className="border border-stone-300 px-1.5 py-1 text-left font-bold" style={{width:'8%'}}>回数</th>
+                    <th className="border border-stone-300 px-1.5 py-1 text-left font-bold" style={{width:'10%'}}>種別</th>
                     <th className="border border-stone-300 px-1.5 py-1 text-left font-bold">料金内訳</th>
-                    <th className="border border-stone-300 px-1.5 py-1 text-right font-bold">金額</th>
-                    <th className="border border-stone-300 px-1.5 py-1 text-right font-bold">ご負担額</th>
+                    <th className="border border-stone-300 px-1.5 py-1 text-right font-bold" style={{width:'12%'}}>金額</th>
+                    <th className="border border-stone-300 px-1.5 py-1 text-right font-bold" style={{width:'12%'}}>ご負担額</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -860,7 +862,7 @@ function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
               </table>
             </div>
 
-            <div className="text-xs text-stone-500 border border-stone-200 rounded p-2 mt-3 space-y-0.5">
+            <div className="print-notice text-xs text-stone-500 border border-stone-200 rounded p-2 mt-3 space-y-0.5">
               <p className="font-bold text-stone-700">【ご注意】</p>
               <p>・本書は概算であり、実際の請求額と異なる場合があります。</p>
               <p>・患者様ご負担額は高額療養費制度等の適用前の概算です。</p>
@@ -936,30 +938,27 @@ function FeeTablePreview({ stationName, onClose }: FeeTablePreviewProps) {
 
         {/* 料金表コンテンツ */}
         <div className="flex-1 overflow-y-auto p-4">
-          <div id="print-content" className="bg-white border border-stone-200 rounded-lg p-6 space-y-5 text-sm">
+          <div id="print-content" className="bg-white border border-stone-200 rounded-lg p-5 space-y-3 text-sm">
             {/* タイトル */}
-            <div className="text-center border-b-2 border-stone-800 pb-3">
-              <h1 className="text-lg font-bold text-stone-900">
-                訪問看護 利用料金表
-              </h1>
-              <p className="text-sm font-medium text-stone-700 mt-1">{modeLabels[selectedMode]}</p>
+            <div className="text-center border-b-2 border-stone-800 pb-2">
+              <h1 className="text-base font-bold text-stone-900">訪問看護 利用料金表（{modeLabels[selectedMode]}）</h1>
               <p className="text-xs text-stone-500 mt-0.5">令和8年度（2026年度）診療報酬改定 準拠</p>
             </div>
 
-            {/* 医療保険 料金表 */}
+            {/* 料金表本体 */}
             {selectedMode === "medical" && <MedicalFeeTable />}
             {selectedMode === "care" && <CareFeeTable />}
             {selectedMode === "preventive" && <PreventiveFeeTable />}
             {selectedMode === "psychiatric" && <PsychiatricFeeTable />}
 
             {/* 注意書き */}
-            <div className="text-xs text-stone-500 border border-stone-200 rounded p-3 space-y-1">
+            <div className="print-notice text-xs text-stone-500 border border-stone-200 rounded p-3 space-y-1">
               <p className="font-bold text-stone-700">【ご注意】</p>
               <p>・上記料金は令和8年度（2026年度）診療報酬改定・令和6年度介護報酬改定に基づく算定額です。</p>
               <p>・患者様のご負担額は、保険の種別・負担割合・公費負担医療の適用等により異なります。</p>
               <p>・加算の算定は、訪問時の状況・指示書の内容等により異なります。詳細はご相談ください。</p>
               {(selectedMode === "care" || selectedMode === "preventive") && (
-                <p>・介護保険の単位数は地域区分単価（1単位＝10.00〜10.90円）により円換算額が異なります。</p>
+                <p>・介護保険の単位数は地域区分単価（1単位＝10.00～10.90円）により円換算額が異なります。</p>
               )}
               {selectedMode === "psychiatric" && (
                 <p>・自立支援医療（精神通院）適用の場合、月額自己負担上限額の管理が必要です。</p>
@@ -996,7 +995,7 @@ function MedicalFeeTable() {
     p30: `${Math.round(yen * 0.3 / 5) * 5}円`,
   });
   return (
-    <div className="space-y-3">
+    <div className="print-section space-y-3">
       <p className="text-xs text-stone-500">※ 自己負担額は5円未満切り捨て（四捨五入）。高額療養費・公費負担は別途適用されます。</p>
 
       <SectionTitle>訪問看護基本療養費Ⅰ（同一建物以外・従来型）</SectionTitle>
@@ -1225,7 +1224,7 @@ function CareFeeTable() {
     p30: `${Math.floor(units * 10 * 0.3)}円`,
   });
   return (
-    <div className="space-y-3">
+    <div className="print-section space-y-3">
       <p className="text-xs text-stone-500">※ 単位数は令和6年度改定後。目安金額は1単位＝10円換算。実際は地域区分単価により異なります。自己負担額は円単位切り捨て。</p>
 
       <SectionTitle>訪問看護費（訪問看護ステーション）</SectionTitle>
@@ -1341,7 +1340,7 @@ function PreventiveFeeTable() {
     p30: `${Math.floor(units * 10 * 0.3)}円`,
   });
   return (
-    <div className="space-y-3">
+    <div className="print-section space-y-3">
       <p className="text-xs text-stone-500">※ 要支援1・2の方が対象です。単位数は令和6年度改定後。目安金額は1単位＝10円換算。自己負担額は円単位切り捨て。</p>
 
       <SectionTitle>介護予防訪問看護費（訪問看護ステーション）</SectionTitle>
@@ -1458,7 +1457,7 @@ function PsychiatricFeeTable() {
     p30: `${Math.round(yen * 0.3 / 5) * 5}円`,
   });
   return (
-    <div className="space-y-3">
+    <div className="print-section space-y-3">
       <p className="text-xs text-stone-500">※ 精神疾患を有する者に対する訪問看護。令和8年度（2026年度）改定後の点数。自己負担額は5円未満切り捨て（四捨五入）。</p>
 
       <SectionTitle>精神科訪問看護基本療養費Ⅰ（通常・同一建物１人）</SectionTitle>
