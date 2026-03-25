@@ -1719,6 +1719,58 @@ function PsychiatricFeeTable() {
 }
 
 // ============================================================
+// ステップインジケーター
+// ============================================================
+const STEP_LABELS = [
+  { step: 1, label: "種別選択" },
+  { step: 2, label: "算定条件" },
+  { step: 3, label: "負担割合" },
+  { step: 4, label: "カレンダー" },
+] as const;
+
+function StepIndicator({ currentStep, onStepClick }: { currentStep: number; onStepClick: (step: 1|2|3|4) => void }) {
+  return (
+    <div className="flex items-center justify-between px-2 py-2">
+      {STEP_LABELS.map(({ step, label }, idx) => {
+        const isDone = currentStep > step;
+        const isActive = currentStep === step;
+        return (
+          <div key={step} className="flex items-center flex-1">
+            <button
+              onClick={() => isDone || isActive ? onStepClick(step as 1|2|3|4) : undefined}
+              disabled={!isDone && !isActive}
+              className={cn(
+                "flex flex-col items-center gap-0.5 flex-1 transition-all",
+                (isDone || isActive) ? "cursor-pointer" : "cursor-default opacity-40"
+              )}
+            >
+              <div className={cn(
+                "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all",
+                isDone ? "bg-amber-600 border-amber-600 text-white" :
+                isActive ? "bg-white border-amber-600 text-amber-600" :
+                "bg-white border-stone-300 text-stone-400"
+              )}>
+                {isDone ? <CheckIcon className="w-3.5 h-3.5" /> : step}
+              </div>
+              <span className={cn(
+                "text-[10px] font-medium",
+                isActive ? "text-amber-700" : isDone ? "text-amber-600" : "text-stone-400"
+              )}>{label}</span>
+            </button>
+            {idx < STEP_LABELS.length - 1 && (
+              <div className={cn(
+                "h-0.5 flex-1 mx-1 rounded transition-all",
+                currentStep > step ? "bg-amber-500" : "bg-stone-200"
+              )} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============================================================
 // メインページ
 // ============================================================
 export default function Home() {
@@ -1740,12 +1792,252 @@ export default function Home() {
   }, [store.selectedDate, store.currentMonthVisits]);
 
   const selectedVisitDay = store.selectedDate ? store.getVisitDay(store.selectedDate) : null;
+  const modeConf = MODE_CONFIG[store.globalInsuranceMode];
+
+  // ステップ別コンテンツ
+  const renderStepContent = () => {
+    // Step 1: 種別選択
+    if (store.homeStep === 1) {
+      return (
+        <div className="p-4 space-y-4">
+          <div className="text-center mb-2">
+            <p className="text-sm text-stone-500">保険種別を選んでください</p>
+          </div>
+          <div className="grid grid-cols-1 gap-3">
+            {(["medical", "care", "preventive", "psychiatric"] as InsuranceMode[]).map((m) => {
+              const conf = MODE_CONFIG[m];
+              const isActive = store.globalInsuranceMode === m;
+              return (
+                <button
+                  key={m}
+                  onClick={() => {
+                    store.setGlobalInsuranceMode(m);
+                    store.setHomeStep(2);
+                  }}
+                  className={cn(
+                    "w-full py-4 px-5 rounded-2xl font-bold text-base flex items-center gap-4 transition-all shadow-sm active:scale-95",
+                    isActive
+                      ? `${conf.color} text-white shadow-md ring-2 ring-offset-2 ring-amber-400`
+                      : "bg-white border-2 border-stone-200 text-stone-700 hover:border-amber-300 hover:bg-amber-50"
+                  )}
+                >
+                  <span className={cn("w-8 h-8 shrink-0", isActive ? "text-white" : "text-stone-400")}>
+                    {conf.icon}
+                  </span>
+                  <div className="text-left">
+                    <div className="font-bold">{conf.label}</div>
+                    <div className={cn("text-xs font-normal mt-0.5", isActive ? "text-white/80" : "text-stone-400")}>
+                      {m === "medical" && "訪問看護基本療養費・管理療養費"}
+                      {m === "care" && "訪問看護費（要介護認定）"}
+                      {m === "preventive" && "介護予防訪問看護費（要支援1・2）"}
+                      {m === "psychiatric" && "精神科訪問看護基本療養費"}
+                    </div>
+                  </div>
+                  <ArrowRightIcon className={cn("w-5 h-5 ml-auto shrink-0", isActive ? "text-white" : "text-stone-300")} />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    // Step 2: 算定条件
+    if (store.homeStep === 2) {
+      return (
+        <div className="p-4 space-y-4">
+          <div className={cn("rounded-xl p-3 flex items-center gap-2", modeConf.bgColor, modeConf.borderColor, "border")}>
+            <span className={cn("w-5 h-5", modeConf.badgeText)}>{modeConf.icon}</span>
+            <span className={cn("text-sm font-bold", modeConf.badgeText)}>{modeConf.label}の算定条件を設定してください</span>
+          </div>
+
+          {store.globalInsuranceMode === "medical" && (
+            <MedicalForm
+              input={store.globalMedicalInput}
+              onChange={(partial) => store.setGlobalMedicalInput(prev => ({ ...prev, ...partial }))}
+            />
+          )}
+          {store.globalInsuranceMode === "care" && (
+            <CareForm
+              input={store.globalCareInput}
+              onChange={(partial) => store.setGlobalCareInput(prev => ({ ...prev, ...partial }))}
+            />
+          )}
+          {store.globalInsuranceMode === "preventive" && (
+            <PreventiveCareForm
+              input={store.globalPreventiveCareInput}
+              onChange={(partial) => store.setGlobalPreventiveCareInput(prev => ({ ...prev, ...partial }))}
+            />
+          )}
+          {store.globalInsuranceMode === "psychiatric" && (
+            <PsychiatricForm
+              input={store.globalPsychInput}
+              onChange={(partial) => store.setGlobalPsychInput(prev => ({ ...prev, ...partial }))}
+            />
+          )}
+
+          <div className="pb-24" />
+        </div>
+      );
+    }
+
+    // Step 3: 負担割合
+    if (store.homeStep === 3) {
+      return (
+        <div className="p-4 space-y-4">
+          <div className={cn("rounded-xl p-3 flex items-center gap-2", modeConf.bgColor, modeConf.borderColor, "border")}>
+            <span className={cn("w-5 h-5", modeConf.badgeText)}>{modeConf.icon}</span>
+            <span className={cn("text-sm font-bold", modeConf.badgeText)}>負担割合を入力してください</span>
+          </div>
+          <CopayForm
+            input={store.globalCopayInput}
+            onChange={(partial) => {
+              const updated = { ...store.globalCopayInput, ...partial };
+              store.setGlobalCopayInput(updated);
+              // 全訪問日の負担入力も同時更新
+              store.updateCopayForAll(updated);
+            }}
+            insuranceMode={store.globalInsuranceMode}
+          />
+          <div className="pb-24" />
+        </div>
+      );
+    }
+
+    // Step 4: カレンダー
+    return (
+      <div className="p-4 space-y-4">
+        {/* 設定サマリー */}
+        <div className={cn("rounded-xl p-3 border", modeConf.bgColor, modeConf.borderColor)}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className={cn("w-4 h-4", modeConf.badgeText)}>{modeConf.icon}</span>
+              <span className={cn("text-sm font-bold", modeConf.badgeText)}>{modeConf.label}</span>
+            </div>
+            <button
+              onClick={() => store.setHomeStep(1)}
+              className="text-xs text-stone-500 hover:text-amber-700 px-2 py-1 rounded hover:bg-white transition-colors"
+            >
+              変更
+            </button>
+          </div>
+          <div className="mt-1.5 text-xs text-stone-500 flex flex-wrap gap-x-3 gap-y-0.5">
+            {store.globalInsuranceMode === "medical" && (
+              <>
+                <span>訪問形態: {store.globalMedicalInput.isSameBuilding ? "同一建物" : "同一建物以外"}</span>
+                <span>負担: {store.globalCopayInput.copayRatio}割</span>
+              </>
+            )}
+            {(store.globalInsuranceMode === "care" || store.globalInsuranceMode === "preventive") && (
+              <>
+                <span>提供体: {store.globalCareInput.providerType === "station" ? "ステーション" : "病院"}</span>
+                <span>負担: {store.globalCopayInput.careCopayRatio}割</span>
+              </>
+            )}
+            {store.globalInsuranceMode === "psychiatric" && (
+              <span>負担: {store.globalCopayInput.copayRatio}割</span>
+            )}
+          </div>
+        </div>
+
+        {/* 月ナビゲーション */}
+        <div className="flex items-center justify-between bg-white rounded-xl border border-stone-200 px-4 py-2">
+          <button onClick={store.prevMonth} className="p-2 rounded-lg hover:bg-stone-100 transition-colors">
+            <ChevronLeftIcon className="w-5 h-5 text-stone-600" />
+          </button>
+          <div className="text-center">
+            <div className="font-bold text-stone-900">{store.year}年{store.month}月</div>
+            {store.monthlyResults.length > 0 && (
+              <div className="text-xs text-amber-600 font-medium">
+                {store.monthlyResults.length}回 / {formatYen(store.totalAmount)}
+              </div>
+            )}
+          </div>
+          <button onClick={store.nextMonth} className="p-2 rounded-lg hover:bg-stone-100 transition-colors">
+            <ChevronRightIcon className="w-5 h-5 text-stone-600" />
+          </button>
+        </div>
+
+        {/* カレンダー */}
+        <div className="bg-white rounded-xl border border-stone-200 p-4">
+          <Calendar
+            year={store.year}
+            month={store.month}
+            visitDays={visitDaysForCalendar}
+            selectedDate={store.selectedDate}
+            onToggle={store.toggleVisitDay}
+            onSelect={store.setSelectedDate}
+          />
+        </div>
+
+        {/* 選択日のクイック情報 */}
+        {store.selectedDate && selectedVisitDay && (
+          <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">
+            <div className="bg-amber-50 px-4 py-2 flex items-center justify-between">
+              <span className="text-sm font-bold text-amber-800">
+                {store.selectedDate.split("-").slice(1).join("/")} の算定
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    store.toggleVisitDay(store.selectedDate!);
+                    store.setSelectedDate(null);
+                  }}
+                  className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                >
+                  削除
+                </button>
+                <button
+                  onClick={() => store.setSelectedDate(store.selectedDate)}
+                  className="text-xs text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-lg font-medium transition-colors"
+                >
+                  詳細設定 →
+                </button>
+              </div>
+            </div>
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className={cn(
+                    "text-xs px-2 py-0.5 rounded font-medium",
+                    MODE_CONFIG[selectedVisitDay.insuranceMode].badgeBg,
+                    MODE_CONFIG[selectedVisitDay.insuranceMode].badgeText
+                  )}>
+                    {MODE_CONFIG[selectedVisitDay.insuranceMode].label}
+                  </span>
+                  <span className="text-xs text-stone-500">{selectedVisitIndex}回目</span>
+                </div>
+                <span className="font-bold text-stone-800">
+                  {(() => {
+                    const r = store.monthlyResults.find(r => r.date === store.selectedDate);
+                    return r ? formatYen(r.totalYen) : "—";
+                  })()}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 凡例 */}
+        <div className="flex flex-wrap items-center gap-3 text-xs text-stone-500 justify-center">
+          {(["medical", "care", "preventive", "psychiatric"] as InsuranceMode[]).map(m => (
+            <div key={m} className="flex items-center gap-1">
+              <div className={cn("w-3 h-3 rounded", MODE_CONFIG[m].color)} />
+              <span>{MODE_CONFIG[m].label}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="pb-24" />
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-stone-50 flex flex-col max-w-lg mx-auto">
       {/* ヘッダー */}
-      <header className="bg-white border-b border-stone-200 px-4 py-3 shrink-0 sticky top-0 z-30">
-        <div className="flex items-center justify-between">
+      <header className="bg-white border-b border-stone-200 px-4 pt-3 pb-1 shrink-0 sticky top-0 z-30">
+        <div className="flex items-center justify-between mb-1">
           <div>
             <h1 className="text-base font-bold text-stone-900">訪問看護 料金計算</h1>
             <p className="text-xs text-stone-400">令和8年度改定準拠</p>
@@ -1770,153 +2062,22 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 利用者・事業所名入力 */}
-        <div className="mt-2 flex gap-2">
-          <div className="flex items-center gap-1 flex-1 bg-stone-50 border border-stone-200 rounded-lg px-2 py-1.5">
-            <UserIcon className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-            <input
-              type="text"
-              placeholder="利用者名"
-              value={store.patientName}
-              onChange={(e) => store.setPatientName(e.target.value)}
-              className="flex-1 text-xs bg-transparent outline-none text-stone-700 placeholder:text-stone-300"
-            />
-          </div>
-          <div className="flex items-center gap-1 flex-1 bg-stone-50 border border-stone-200 rounded-lg px-2 py-1.5">
-            <BuildingIcon className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-            <input
-              type="text"
-              placeholder="事業所名"
-              value={store.stationName}
-              onChange={(e) => store.setStationName(e.target.value)}
-              className="flex-1 text-xs bg-transparent outline-none text-stone-700 placeholder:text-stone-300"
-            />
-          </div>
-        </div>
+        {/* ステップインジケーター */}
+        <StepIndicator
+          currentStep={store.homeStep}
+          onStepClick={store.setHomeStep}
+        />
       </header>
 
-      {/* 月ナビゲーション */}
-      <div className="bg-white border-b border-stone-200 px-4 py-2 flex items-center justify-between shrink-0">
-        <button onClick={store.prevMonth} className="p-2 rounded-lg hover:bg-stone-100 transition-colors">
-          <ChevronLeftIcon className="w-5 h-5 text-stone-600" />
-        </button>
-        <div className="text-center">
-          <div className="font-bold text-stone-900">{store.year}年{store.month}月</div>
-          {store.monthlyResults.length > 0 && (
-            <div className="text-xs text-amber-600 font-medium">
-              {store.monthlyResults.length}回 / {formatYen(store.totalAmount)}
-            </div>
-          )}
-        </div>
-        <button onClick={store.nextMonth} className="p-2 rounded-lg hover:bg-stone-100 transition-colors">
-          <ChevronRightIcon className="w-5 h-5 text-stone-600" />
-        </button>
-      </div>
-
       {/* コンテンツ */}
-      <div className="flex-1 overflow-y-auto pb-24">
-        <div className="p-4 space-y-4">
-          {/* デフォルト保険種別 */}
-          <div className="bg-white rounded-xl border border-stone-200 p-3">
-            <div className="text-xs text-stone-500 mb-2 font-medium">新規訪問日のデフォルト種別</div>
-            <div className="grid grid-cols-2 gap-1.5">
-              {(["medical", "care", "preventive", "psychiatric"] as InsuranceMode[]).map((m) => {
-                const conf = MODE_CONFIG[m];
-                const isActive = store.globalInsuranceMode === m;
-                return (
-                  <button
-                    key={m}
-                    onClick={() => store.setGlobalInsuranceMode(m)}
-                    className={cn(
-                      "py-2 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5",
-                      isActive ? `${conf.color} text-white shadow-sm` : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-                    )}
-                  >
-                    <span className={cn("w-4 h-4", isActive ? "text-white" : "text-stone-400")}>
-                      {conf.icon}
-                    </span>
-                    {conf.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* カレンダー */}
-          <div className="bg-white rounded-xl border border-stone-200 p-4">
-            <Calendar
-              year={store.year}
-              month={store.month}
-              visitDays={visitDaysForCalendar}
-              selectedDate={store.selectedDate}
-              onToggle={store.toggleVisitDay}
-              onSelect={store.setSelectedDate}
-            />
-          </div>
-
-          {/* 選択日のクイック情報 */}
-          {store.selectedDate && selectedVisitDay && (
-            <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">
-              <div className="bg-amber-50 px-4 py-2 flex items-center justify-between">
-                <span className="text-sm font-bold text-amber-800">
-                  {store.selectedDate.split("-").slice(1).join("/")} の算定
-                </span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      store.toggleVisitDay(store.selectedDate!);
-                      store.setSelectedDate(null);
-                    }}
-                    className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors"
-                  >
-                    削除
-                  </button>
-                  <button
-                    onClick={() => store.setSelectedDate(store.selectedDate)}
-                    className="text-xs text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-lg font-medium transition-colors"
-                  >
-                    詳細設定 →
-                  </button>
-                </div>
-              </div>
-              <div className="px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className={cn(
-                      "text-xs px-2 py-0.5 rounded font-medium",
-                      MODE_CONFIG[selectedVisitDay.insuranceMode].badgeBg,
-                      MODE_CONFIG[selectedVisitDay.insuranceMode].badgeText
-                    )}>
-                      {MODE_CONFIG[selectedVisitDay.insuranceMode].label}
-                    </span>
-                    <span className="text-xs text-stone-500">{selectedVisitIndex}回目</span>
-                  </div>
-                  <span className="font-bold text-stone-800">
-                    {(() => {
-                      const r = store.monthlyResults.find(r => r.date === store.selectedDate);
-                      return r ? formatYen(r.totalYen) : "—";
-                    })()}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 凡例 */}
-          <div className="flex flex-wrap items-center gap-3 text-xs text-stone-500 justify-center">
-            {(["medical", "care", "preventive", "psychiatric"] as InsuranceMode[]).map(m => (
-              <div key={m} className="flex items-center gap-1">
-                <div className={cn("w-3 h-3 rounded", MODE_CONFIG[m].color)} />
-                <span>{MODE_CONFIG[m].label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div className="flex-1 overflow-y-auto">
+        {renderStepContent()}
       </div>
 
-      {/* 月次集計 固定ボタン（訪問日が1件以上の時） */}
+      {/* ステップナビゲーションボタン（固定フッター） */}
       <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg px-4 pb-4 pt-2 bg-gradient-to-t from-stone-100 to-transparent z-20">
-        {store.monthlyResults.length > 0 && (
+        {/* Step 4: 月次集計ボタン */}
+        {store.homeStep === 4 && store.monthlyResults.length > 0 && (
           <button
             onClick={() => setShowPrint(true)}
             className="w-full py-4 bg-amber-600 text-white rounded-2xl font-bold text-base flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all mb-2"
@@ -1925,6 +2086,23 @@ export default function Home() {
             月次集計を確認する（{store.monthlyResults.length}回 / {formatYen(store.totalAmount)}）
           </button>
         )}
+
+        {/* Step 1、3: 次へ進むボタン */}
+        {store.homeStep < 4 && (
+          <button
+            onClick={() => store.setHomeStep((store.homeStep + 1) as 1|2|3|4)}
+            className={cn(
+              "w-full py-4 rounded-2xl font-bold text-white text-base flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all mb-2",
+              modeConf.color
+            )}
+          >
+            {store.homeStep === 1 && <>種別を選んで次へ<ArrowRightIcon className="w-5 h-5" /></>}
+            {store.homeStep === 2 && <>算定条件を確認して次へ<ArrowRightIcon className="w-5 h-5" /></>}
+            {store.homeStep === 3 && <>負担割合を確認してカレンダーへ<ArrowRightIcon className="w-5 h-5" /></>}
+          </button>
+        )}
+
+        {/* リセットボタン */}
         <button
           onClick={() => {
             if (window.confirm("全データをリセットします。この操作は元に戻せません。よろしいですか？")) {

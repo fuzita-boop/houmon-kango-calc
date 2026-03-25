@@ -334,6 +334,19 @@ export function useVisitStore() {
   const [patientName, setPatientName] = useState("");
   const [stationName, setStationName] = useState("");
 
+  // グローバル算定条件（ステップUIで設定し、新規訪問日に適用する）
+  const [globalMedicalInput, setGlobalMedicalInput] = useState<import("@/lib/calcEngine").CalcInput>({ ...defaultInput });
+  const [globalCareInput, setGlobalCareInput] = useState<import("@/lib/calcEngine").CareCalcInput>({ ...defaultCareInput });
+  const [globalPreventiveCareInput, setGlobalPreventiveCareInput] = useState<import("@/lib/calcEngine").PreventiveCareCalcInput>({ ...defaultPreventiveCareInput });
+  const [globalPsychInput, setGlobalPsychInput] = useState<import("@/lib/calcEngine").PsychCalcInput>({ ...defaultPsychInput });
+  const [globalCopayInput, setGlobalCopayInput] = useState<import("@/lib/calcEngine").PatientCopayInput>({ ...defaultCopayInput });
+  const [globalBukkaTaiouType, setGlobalBukkaTaiouType] = useState<import("@/lib/calcEngine").BukkaTaiouType>("none");
+  const [globalMedicalBaseupType, setGlobalMedicalBaseupType] = useState<import("@/lib/calcEngine").MedicalBaseupType>("none");
+  const [globalApplyShoguKaizen, setGlobalApplyShoguKaizen] = useState(false);
+
+  // ホーム画面のステップ（種別選択→算定条件→負担割合→カレンダー）
+  const [homeStep, setHomeStep] = useState<1 | 2 | 3 | 4>(1);
+
   const getVisitDay = useCallback(
     (date: string) => visitDays.find((d) => d.date === date) ?? null,
     [visitDays]
@@ -362,15 +375,21 @@ export function useVisitStore() {
           const newDay: VisitDay = {
             ...createDefaultVisitDay(date, globalInsuranceMode),
             medicalInput: applyAutoCountToMedical(
-              { ...defaultInput, isFirstVisitOfMonth: true },
+              { ...globalMedicalInput, isFirstVisitOfMonth: true },
               date,
               allWithNew
             ),
+            careInput: { ...globalCareInput },
+            preventiveCareInput: { ...globalPreventiveCareInput },
             psychInput: applyAutoCountToPsych(
-              { ...defaultPsychInput, isFirstVisitOfMonth: true },
+              { ...globalPsychInput, isFirstVisitOfMonth: true },
               date,
               allWithNew
             ),
+            copayInput: { ...globalCopayInput, insuranceType: globalInsuranceMode === "medical" || globalInsuranceMode === "psychiatric" ? "medical" : "care" },
+            bukkaTaiouType: globalBukkaTaiouType,
+            medicalBaseupType: globalMedicalBaseupType,
+            applyShoguKaizen: globalApplyShoguKaizen,
           };
           return [...prev, newDay];
         }
@@ -380,7 +399,7 @@ export function useVisitStore() {
         return [...prev, newDay];
       });
     },
-    [globalInsuranceMode]
+    [globalInsuranceMode, globalMedicalInput, globalCareInput, globalPreventiveCareInput, globalPsychInput, globalCopayInput, globalBukkaTaiouType, globalMedicalBaseupType, globalApplyShoguKaizen]
   );
 
   const updateVisitDay = useCallback((date: string, updates: Partial<VisitDay>) => {
@@ -451,11 +470,21 @@ export function useVisitStore() {
     setSelectedDate(null);
     setPatientName("");
     setStationName("");
+    setHomeStep(1);
   }, []);
 
   return {
     year, month,
     globalInsuranceMode, setGlobalInsuranceMode,
+    globalMedicalInput, setGlobalMedicalInput,
+    globalCareInput, setGlobalCareInput,
+    globalPreventiveCareInput, setGlobalPreventiveCareInput,
+    globalPsychInput, setGlobalPsychInput,
+    globalCopayInput, setGlobalCopayInput,
+    globalBukkaTaiouType, setGlobalBukkaTaiouType,
+    globalMedicalBaseupType, setGlobalMedicalBaseupType,
+    globalApplyShoguKaizen, setGlobalApplyShoguKaizen,
+    homeStep, setHomeStep,
     visitDays, currentMonthVisits, monthlyResults,
     totalAmount, totalCopay,
     selectedDate, setSelectedDate,
