@@ -72,7 +72,7 @@ export interface VisitDayResult extends VisitDay {
   bukkaRyo: number;     // 物価対応料（円）
   shoguKaizenYen: number; // 処遇改善加算（円）
   baseupRyo: number;    // ベースアップ評価料（円）
-  breakdown: { label: string; yen: number }[]; // 料金内訳
+  breakdown: { label: string; yen: number; units?: number }[]; // 料金内訳（介護保険はunits付き）
 }
 
 // ============================================================
@@ -239,7 +239,7 @@ function calcVisitDayResult(day: VisitDay): VisitDayResult {
   let bukkaRyo = 0;
   let shoguKaizenYen = 0;
   let baseupRyo = 0;
-  const breakdown: { label: string; yen: number }[] = [];
+  const breakdown: { label: string; yen: number; units?: number }[] = [];
 
   if (day.insuranceMode === "medical") {
     const result = calculate(day.medicalInput);
@@ -267,13 +267,13 @@ function calcVisitDayResult(day: VisitDay): VisitDayResult {
     // 内訳項目をbreakdownに変換（単位数→円換算）
     const rate = CARE_REGION_RATES[day.careInput.regionRate];
     result.items.forEach(item => {
-      if (!item.disabled) breakdown.push({ label: item.label, yen: Math.round(item.amount * rate) });
+      if (!item.disabled) breakdown.push({ label: item.label, units: item.amount, yen: Math.round(item.amount * rate) });
     });
     // 処遇改善加算
     if (day.applyShoguKaizen) {
       const kaizen = calcShoguKaizenKasan(total, rate);
       shoguKaizenYen = kaizen.yen;
-      if (shoguKaizenYen > 0) breakdown.push({ label: "処遇改善加算（1.8%）", yen: shoguKaizenYen });
+      if (shoguKaizenYen > 0) breakdown.push({ label: "処遇改善加算（1.8%）", units: kaizen.units, yen: shoguKaizenYen });
     }
     totalYen = baseYen + shoguKaizenYen;
     const copay = calcCopay(totalYen, { ...day.copayInput, insuranceType: "care" });
@@ -285,13 +285,13 @@ function calcVisitDayResult(day: VisitDay): VisitDayResult {
     // 内訳項目をbreakdownに変換（単位数→円換算）
     const rate = CARE_REGION_RATES[day.preventiveCareInput.regionRate];
     result.items.forEach(item => {
-      if (!item.disabled) breakdown.push({ label: item.label, yen: Math.round(item.amount * rate) });
+      if (!item.disabled) breakdown.push({ label: item.label, units: item.amount, yen: Math.round(item.amount * rate) });
     });
     // 処遇改善加算
     if (day.applyShoguKaizen) {
       const kaizen = calcShoguKaizenKasan(total, rate);
       shoguKaizenYen = kaizen.yen;
-      if (shoguKaizenYen > 0) breakdown.push({ label: "処遇改善加算（1.8%）", yen: shoguKaizenYen });
+      if (shoguKaizenYen > 0) breakdown.push({ label: "処遇改善加算（1.8%）", units: kaizen.units, yen: shoguKaizenYen });
     }
     totalYen = baseYen + shoguKaizenYen;
     const copay = calcCopay(totalYen, { ...day.copayInput, insuranceType: "care" });

@@ -157,19 +157,33 @@
   @media print {
     /*
      * 印刷時は #print-content のみ表示する。
-     * A4 (210mm x 297mm) に均等に収まるよう設定。
-     * visibility ベースで #root ごと消えないようにする。
+     * スマホ含め A4 (210mm x 297mm) に確実に収まるよう設定。
+     * html/body に A4 幅を強制してビューポート幅の影響を排除する。
      */
     @page {
       size: A4 portrait;
-      margin: 12mm 15mm;
+      margin: 10mm 12mm;
     }
 
-    html, body {
+    /* html/body をA4幅に強制（スマホビューポート幅の影響を排除） */
+    html {
+      width: 210mm !important;
+      min-width: 210mm !important;
+      max-width: 210mm !important;
       background: white !important;
       visibility: hidden !important;
       margin: 0 !important;
       padding: 0 !important;
+    }
+    body {
+      width: 210mm !important;
+      min-width: 210mm !important;
+      max-width: 210mm !important;
+      background: white !important;
+      visibility: hidden !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: visible !important;
     }
 
     /* print-content とその子孫だけ表示 */
@@ -178,12 +192,12 @@
       visibility: visible !important;
     }
 
-    /* A4 実寸レイアウト */
+    /* A4 実寸レイアウト（左上に配置、幅186mm = 210mm - 左右12mm×2） */
     #print-content {
-      position: absolute !important;
+      position: fixed !important;
       top: 0 !important;
       left: 0 !important;
-      width: 180mm !important;   /* 210mm - 左右15mm×2 */
+      width: 186mm !important;
       min-height: auto !important;
       max-height: none !important;
       overflow: visible !important;
@@ -194,58 +208,67 @@
       box-shadow: none !important;
       background: white !important;
       color: #000 !important;
-      font-size: 9pt !important;
-      line-height: 1.45 !important;
+      font-size: 8pt !important;
+      line-height: 1.4 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
 
-    /* テーブル */
+    /* テーブル：table-layout:fixed で列幅を確実に制御 */
     #print-content table {
-      width: 100% !important;
+      width: 186mm !important;
+      max-width: 186mm !important;
       border-collapse: collapse !important;
-      table-layout: auto !important;
+      table-layout: fixed !important;
     }
     #print-content th,
     #print-content td {
-      border: 0.5pt solid #888 !important;
-      padding: 2pt 4pt !important;
-      font-size: 8pt !important;
-      line-height: 1.4 !important;
+      border: 0.4pt solid #888 !important;
+      padding: 1.5pt 3pt !important;
+      font-size: 7pt !important;
+      line-height: 1.35 !important;
       word-break: break-all !important;
+      overflow: hidden !important;
     }
     #print-content thead tr {
-      background: #f0f0f0 !important;
+      background: #eeeeee !important;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
     #print-content tfoot tr {
-      background: #f0f0f0 !important;
+      background: #eeeeee !important;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
 
     /* 見出し */
     #print-content h1 {
-      font-size: 13pt !important;
+      font-size: 11pt !important;
       font-weight: bold !important;
-      margin-bottom: 4pt !important;
+      margin-bottom: 3pt !important;
     }
-    #print-content h3 {
+    #print-content h2 {
       font-size: 9pt !important;
       font-weight: bold !important;
-      margin-top: 8pt !important;
-      margin-bottom: 3pt !important;
+      margin-bottom: 2pt !important;
+    }
+    #print-content h3 {
+      font-size: 8pt !important;
+      font-weight: bold !important;
+      margin-top: 6pt !important;
+      margin-bottom: 2pt !important;
     }
 
     /* サマリーボックス */
     #print-content .print-summary {
       display: flex !important;
-      gap: 6pt !important;
-      margin-bottom: 6pt !important;
+      gap: 4pt !important;
+      margin-bottom: 5pt !important;
     }
     #print-content .print-summary > div {
       flex: 1 !important;
-      border: 0.5pt solid #ccc !important;
-      padding: 4pt 6pt !important;
+      border: 0.4pt solid #ccc !important;
+      padding: 3pt 5pt !important;
       background: #fafafa !important;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
@@ -253,19 +276,21 @@
 
     /* 注意書き */
     #print-content .print-notice {
-      margin-top: 6pt !important;
-      border: 0.5pt solid #ccc !important;
-      padding: 4pt 6pt !important;
-      font-size: 7pt !important;
-      line-height: 1.5 !important;
+      margin-top: 5pt !important;
+      border: 0.4pt solid #ccc !important;
+      padding: 3pt 5pt !important;
+      font-size: 6.5pt !important;
+      line-height: 1.4 !important;
     }
 
     /* 改ページ制御 */
     #print-content tr {
       page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
     #print-content .print-section {
       page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
 
     /* 非表示 */

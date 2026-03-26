@@ -817,15 +817,21 @@ function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
             {/* 診療日別内訳 */}
             <div className="print-section">
               <h3 className="font-bold text-stone-800 text-xs mb-1.5 border-l-4 border-amber-500 pl-2">診療日別内訳</h3>
+              {(() => {
+                // 介護保険・介護予防が含まれるか判定
+                const hasCare = monthlyResults.some(r => r.insuranceMode === "care" || r.insuranceMode === "preventive");
+                const totalUnits = hasCare ? monthlyResults.reduce((sum, r) => sum + (r.insuranceMode === "care" || r.insuranceMode === "preventive" ? r.total : 0), 0) : 0;
+                return (
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-stone-100">
-                    <th className="border border-stone-300 px-1.5 py-1 text-left font-bold" style={{width:'10%'}}>診療日</th>
-                    <th className="border border-stone-300 px-1.5 py-1 text-left font-bold" style={{width:'8%'}}>回数</th>
-                    <th className="border border-stone-300 px-1.5 py-1 text-left font-bold" style={{width:'10%'}}>種別</th>
-                    <th className="border border-stone-300 px-1.5 py-1 text-left font-bold">料金内訳</th>
-                    <th className="border border-stone-300 px-1.5 py-1 text-right font-bold" style={{width:'12%'}}>金額</th>
-                    <th className="border border-stone-300 px-1.5 py-1 text-right font-bold" style={{width:'12%'}}>ご負担額</th>
+                    <th className="border border-stone-300 px-1.5 py-1 text-left font-bold" style={{width:'9%'}}>診療日</th>
+                    <th className="border border-stone-300 px-1.5 py-1 text-left font-bold" style={{width:'7%'}}>回数</th>
+                    <th className="border border-stone-300 px-1.5 py-1 text-left font-bold" style={{width:'9%'}}>種別</th>
+                    <th className="border border-stone-300 px-1.5 py-1 text-left font-bold">料金内訳{hasCare && <span className="text-stone-400 font-normal">(単位数/円)</span>}</th>
+                    {hasCare && <th className="border border-stone-300 px-1.5 py-1 text-right font-bold" style={{width:'11%'}}>合計単位</th>}
+                    <th className="border border-stone-300 px-1.5 py-1 text-right font-bold" style={{width:'11%'}}>金額</th>
+                    <th className="border border-stone-300 px-1.5 py-1 text-right font-bold" style={{width:'11%'}}>ご負担額</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -835,8 +841,12 @@ function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
                     const dow = weekdays[new Date(y, m - 1, d).getDay()];
                     const conf = MODE_CONFIG[r.insuranceMode];
                     const visitLabel = visitCountLabels[idx] ?? `${idx + 1}回目`;
+                    const isCare = r.insuranceMode === "care" || r.insuranceMode === "preventive";
                     const breakdownText = r.breakdown
-                      .map(b => `${b.label}：${formatYen(b.yen)}`)
+                      .map(b => isCare && b.units != null
+                        ? `${b.label}\u3000${b.units.toLocaleString()}単位（${formatYen(b.yen)}）`
+                        : `${b.label}：${formatYen(b.yen)}`
+                      )
                       .join("\n");
                     return (
                       <tr key={r.id}>
@@ -846,6 +856,7 @@ function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
                         <td className="border border-stone-300 px-1.5 py-1">
                           <div className="text-xs text-stone-600 leading-relaxed whitespace-pre-line">{breakdownText}</div>
                         </td>
+                        {hasCare && <td className="border border-stone-300 px-1.5 py-1 text-right font-medium whitespace-nowrap">{isCare ? `${r.total.toLocaleString()}単位` : "-"}</td>}
                         <td className="border border-stone-300 px-1.5 py-1 text-right font-medium whitespace-nowrap">{formatYen(r.totalYen)}</td>
                         <td className="border border-stone-300 px-1.5 py-1 text-right font-medium whitespace-nowrap">{formatYen(r.copayAmount)}</td>
                       </tr>
@@ -854,12 +865,15 @@ function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
                 </tbody>
                 <tfoot>
                   <tr className="bg-stone-100 font-bold">
-                    <td colSpan={4} className="border border-stone-300 px-1.5 py-1">合計</td>
+                    <td colSpan={hasCare ? 4 : 4} className="border border-stone-300 px-1.5 py-1">合計</td>
+                    {hasCare && <td className="border border-stone-300 px-1.5 py-1 text-right">{totalUnits.toLocaleString()}単位</td>}
                     <td className="border border-stone-300 px-1.5 py-1 text-right">{formatYen(totalAmount)}</td>
                     <td className="border border-stone-300 px-1.5 py-1 text-right">{formatYen(totalCopay)}</td>
                   </tr>
                 </tfoot>
               </table>
+                );
+              })()}
             </div>
 
             <div className="print-notice text-xs text-stone-500 border border-stone-200 rounded p-2 mt-3 space-y-0.5">
