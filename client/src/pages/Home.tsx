@@ -171,10 +171,11 @@ function Calendar({ year, month, visitDays, selectedDate, onToggle, onSelect }: 
                   type="button"
                   onClick={() => {
                     if (isVisit) {
+                      // 訪問済み日タップ→編集パネルを開く
                       onSelect(dateStr);
                     } else {
+                      // 未訪問日タップ→即追加（確認画面なし）
                       onToggle(dateStr);
-                      onSelect(dateStr);
                     }
                   }}
                   onContextMenu={(e) => {
@@ -200,6 +201,14 @@ function Calendar({ year, month, visitDays, selectedDate, onToggle, onSelect }: 
                       {visitCountLabels[visitIndex - 1] ?? `${visitIndex}`}
                     </span>
                   )}
+                  {/* 訪問済み日に鱛筆アイコン */}
+                  {isVisit && (
+                    <span className="absolute top-0.5 right-0.5 opacity-70">
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                      </svg>
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -207,7 +216,7 @@ function Calendar({ year, month, visitDays, selectedDate, onToggle, onSelect }: 
         ))}
       </div>
       <div className="mt-2 text-xs text-stone-400 text-center">
-        タップで訪問日追加 / 長押しで削除
+        タップで追加 / 訪問済みはタップで編集 / 長押しで削除
       </div>
     </div>
   );
@@ -1984,53 +1993,7 @@ export default function Home() {
           />
         </div>
 
-        {/* 選択日のクイック情報 */}
-        {store.selectedDate && selectedVisitDay && (
-          <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">
-            <div className="bg-amber-50 px-4 py-2 flex items-center justify-between">
-              <span className="text-sm font-bold text-amber-800">
-                {store.selectedDate.split("-").slice(1).join("/")} の算定
-              </span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    store.toggleVisitDay(store.selectedDate!);
-                    store.setSelectedDate(null);
-                  }}
-                  className="text-xs text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors"
-                >
-                  削除
-                </button>
-                <button
-                  onClick={() => store.setSelectedDate(store.selectedDate)}
-                  className="text-xs text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-lg font-medium transition-colors"
-                >
-                  詳細設定 →
-                </button>
-              </div>
-            </div>
-            <div className="px-4 py-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className={cn(
-                    "text-xs px-2 py-0.5 rounded font-medium",
-                    MODE_CONFIG[selectedVisitDay.insuranceMode].badgeBg,
-                    MODE_CONFIG[selectedVisitDay.insuranceMode].badgeText
-                  )}>
-                    {MODE_CONFIG[selectedVisitDay.insuranceMode].label}
-                  </span>
-                  <span className="text-xs text-stone-500">{selectedVisitIndex}回目</span>
-                </div>
-                <span className="font-bold text-stone-800">
-                  {(() => {
-                    const r = store.monthlyResults.find(r => r.date === store.selectedDate);
-                    return r ? formatYen(r.totalYen) : "—";
-                  })()}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* 訪問済み日をタップするとVisitDetailPanelが直接開く（クイック情報パネルは不要） */}
 
         {/* 凡例 */}
         <div className="flex flex-wrap items-center gap-3 text-xs text-stone-500 justify-center">

@@ -105,6 +105,7 @@ function resetPsychMonthlyOnceAdditions(input: PsychCalcInput): PsychCalcInput {
     h24Support: false,
     specialManagement: false,
     terminalCare: false,
+    infoProvision: false,  // 情報提供療養費は月1回のみ
     isFirstVisitOfMonth: false,
   };
 }
@@ -340,7 +341,7 @@ export function useVisitStore() {
   const [globalPreventiveCareInput, setGlobalPreventiveCareInput] = useState<import("@/lib/calcEngine").PreventiveCareCalcInput>({ ...defaultPreventiveCareInput });
   const [globalPsychInput, setGlobalPsychInput] = useState<import("@/lib/calcEngine").PsychCalcInput>({ ...defaultPsychInput });
   const [globalCopayInput, setGlobalCopayInput] = useState<import("@/lib/calcEngine").PatientCopayInput>({ ...defaultCopayInput });
-  const [globalBukkaTaiouType, setGlobalBukkaTaiouType] = useState<import("@/lib/calcEngine").BukkaTaiouType>("none");
+  const [globalBukkaTaiouType, setGlobalBukkaTaiouType] = useState<import("@/lib/calcEngine").BukkaTaiouType>("type1"); // 物価対応料はデフォルトON
   const [globalMedicalBaseupType, setGlobalMedicalBaseupType] = useState<import("@/lib/calcEngine").MedicalBaseupType>("none");
   const [globalApplyShoguKaizen, setGlobalApplyShoguKaizen] = useState(false);
 
