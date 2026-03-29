@@ -6,12 +6,14 @@
  * - 自立支援医療の月額上限管理
  */
 
-import type { PsychCalcInput, SeishinCopayTracker, ManagementFeeType, BukkaTaiouType } from "@/lib/calcEngine";
+import type { PsychCalcInput, SeishinCopayTracker, ManagementFeeType, BukkaTaiouType, MedicalBaseupType } from "@/lib/calcEngine";
 import { cn } from "@/lib/utils";
 
 interface PsychiatricFormProps {
   input: PsychCalcInput;
   onChange: (updates: Partial<PsychCalcInput>) => void;
+  baseupType?: MedicalBaseupType;
+  onBaseupTypeChange?: (v: MedicalBaseupType) => void;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -91,7 +93,7 @@ function SelectRow({
   );
 }
 
-export default function PsychiatricForm({ input, onChange }: PsychiatricFormProps) {
+export default function PsychiatricForm({ input, onChange, baseupType = "none", onBaseupTypeChange }: PsychiatricFormProps) {
   const isType4 = input.basicFeeType === "type4";
 
   return (
@@ -276,6 +278,41 @@ export default function PsychiatricForm({ input, onChange }: PsychiatricFormProp
           note="精神科訪問看護基本療養費算定者 +20円/日（令和9年6月以降は40円/日）"
         />
       </Section>
+
+      {/* 訪問看護ベースアップ評価料 */}
+      {onBaseupTypeChange && (
+        <Section title="訪問看護ベースアップ評価料（令和6年度改定）">
+          <div className="space-y-2">
+            {([
+              { value: "none" as MedicalBaseupType,  label: "算定しない",    note: "" },
+              { value: "type1" as MedicalBaseupType, label: "評価料（Ⅰ）",  note: "+100円/日" },
+              { value: "type2" as MedicalBaseupType, label: "評価料（Ⅱ）",  note: "+200円/日（ステーションのみ）" },
+            ] as { value: MedicalBaseupType; label: string; note: string }[]).map((opt) => (
+              <label
+                key={opt.value}
+                className={cn(
+                  "flex items-center justify-between py-2 px-3 rounded-lg cursor-pointer transition-colors",
+                  baseupType === opt.value
+                    ? "bg-purple-50 border border-purple-200"
+                    : "bg-stone-50 border border-stone-100"
+                )}
+              >
+                <div>
+                  <div className="text-sm font-medium text-stone-800">{opt.label}</div>
+                  {opt.note && <div className="text-xs text-stone-500">{opt.note}</div>}
+                </div>
+                <input
+                  type="radio"
+                  name="baseupType"
+                  checked={baseupType === opt.value}
+                  onChange={() => onBaseupTypeChange(opt.value)}
+                  className="w-4 h-4 accent-purple-600"
+                />
+              </label>
+            ))}
+          </div>
+        </Section>
+      )}
 
       {/* 月1回加算 */}
       <Section title="月1回加算">

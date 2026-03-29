@@ -22,6 +22,7 @@ import type {
   InfoProvisionType,
   ManagementFeeType,
   TerminalCareType,
+  MedicalBaseupType,
 } from "@/lib/calcEngine";
 import { getDisabledFields } from "@/lib/calcEngine";
 
@@ -129,9 +130,11 @@ function Section({ title, children, badge }: SectionProps) {
 interface MedicalFormProps {
   input: CalcInput;
   onChange: (updates: Partial<CalcInput>) => void;
+  baseupType?: MedicalBaseupType;
+  onBaseupTypeChange?: (v: MedicalBaseupType) => void;
 }
 
-export default function MedicalForm({ input, onChange }: MedicalFormProps) {
+export default function MedicalForm({ input, onChange, baseupType = "none", onBaseupTypeChange }: MedicalFormProps) {
   const disabled = getDisabledFields(input);
   const isComprehensive = input.mode === "comprehensive";
 
@@ -495,6 +498,32 @@ export default function MedicalForm({ input, onChange }: MedicalFormProps) {
           </div>
         )}
       </Section>
+
+      {/* 訪問看護ベースアップ評価料 */}
+      {onBaseupTypeChange && (
+        <Section title="訪問看護ベースアップ評価料（令和6年度改定）">
+          <RadioGroup<MedicalBaseupType>
+            label="評価料の種別"
+            value={baseupType}
+            onChange={onBaseupTypeChange}
+            options={[
+              { value: "none",  label: "算定しない" },
+              { value: "type1", label: "評価料（Ⅰ）", sublabel: "+100円/日" },
+              { value: "type2", label: "評価料（Ⅱ）", sublabel: "+200円/日（ステーションのみ）" },
+            ]}
+            tooltip="訪問看護ステーション：Ⅰ・Ⅱ両方算定可。病院・診療所：Ⅰのみ"
+          />
+          {baseupType !== "none" && (
+            <div className="text-xs text-stone-500 bg-amber-50 rounded px-3 py-2 border border-amber-200">
+              {baseupType === "type1" ? (
+                <>評価料（Ⅰ）：<span className="font-bold text-amber-700">+100円/日</span></>
+              ) : (
+                <>評価料（Ⅱ）：<span className="font-bold text-amber-700">+200円/日</span>（ステーション限定）</>
+              )}
+            </div>
+          )}
+        </Section>
+      )}
     </div>
   );
 }

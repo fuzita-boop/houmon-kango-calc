@@ -307,7 +307,13 @@ function calcVisitDayResult(day: VisitDay): VisitDayResult {
     // 物価対応料（type2）
     bukkaRyo = calcBukkaTaiouRyo(day.bukkaTaiouType, day.psychInput.isFirstVisitOfMonth);
     if (bukkaRyo > 0) breakdown.push({ label: "診療報酬物価対応料", yen: bukkaRyo });
-    totalYen = result.total + bukkaRyo;
+    // ベースアップ評価料（精神科も医療保険と同じ評価料を適用）
+    baseupRyo = day.medicalBaseupType !== "none" ? MEDICAL_BASEUP_FEE[day.medicalBaseupType as "type1" | "type2"] : 0;
+    if (baseupRyo > 0) {
+      const baseupLabel = day.medicalBaseupType === "type1" ? "診療報酬ベースアップ評価料（1）" : "診療報酬ベースアップ評価料（2）";
+      breakdown.push({ label: baseupLabel, yen: baseupRyo });
+    }
+    totalYen = result.total + bukkaRyo + baseupRyo;
     // 自立支援医療の月額上限管理
     const baseCopay = calcCopay(totalYen, day.copayInput);
     if (day.copayInput.kohiType === "seishin") {

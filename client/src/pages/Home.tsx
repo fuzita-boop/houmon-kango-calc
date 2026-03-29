@@ -1941,6 +1941,8 @@ export default function Home() {
             <MedicalForm
               input={store.globalMedicalInput}
               onChange={(partial) => store.setGlobalMedicalInput(prev => ({ ...prev, ...partial }))}
+              baseupType={store.globalMedicalBaseupType}
+              onBaseupTypeChange={(v) => store.setGlobalMedicalBaseupType(v)}
             />
           )}
           {store.globalInsuranceMode === "care" && (
@@ -1959,6 +1961,8 @@ export default function Home() {
             <PsychiatricForm
               input={store.globalPsychInput}
               onChange={(partial) => store.setGlobalPsychInput(prev => ({ ...prev, ...partial }))}
+              baseupType={store.globalMedicalBaseupType}
+              onBaseupTypeChange={(v) => store.setGlobalMedicalBaseupType(v)}
             />
           )}
 
