@@ -912,7 +912,20 @@ type FeeTableMode = "medical" | "care" | "preventive" | "psychiatric";
 function FeeTablePreview({ stationName, onClose }: FeeTablePreviewProps) {
   const [selectedMode, setSelectedMode] = useState<FeeTableMode>("medical");
   const printDate = new Date().toLocaleDateString("ja-JP");
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    // 医療・精神科は9列あるため横向き印刷
+    const isLandscape = selectedMode === "medical" || selectedMode === "psychiatric";
+    if (isLandscape) {
+      document.documentElement.classList.add('fee-table-print');
+      document.body.classList.add('fee-table-print');
+    }
+    window.print();
+    // 印刷ダイアログを閉じた後にクラスを削除
+    setTimeout(() => {
+      document.documentElement.classList.remove('fee-table-print');
+      document.body.classList.remove('fee-table-print');
+    }, 1000);
+  };
 
   const modeLabels: Record<FeeTableMode, string> = {
     medical: "医療保険（訪問看護療養費）",
@@ -1349,6 +1362,62 @@ function CareFeeTable() {
         </tbody>
       </table>
       <p className="text-xs text-stone-500">※ 夜間・早朝加算（所定単位数の25%）、深夜加算（50%）は訪問時間の単位数に応じて変動します。処遇改善加算（1.8%）は月単位で算定。</p>
+
+      <SectionTitle>訪問看護処遇改善加算（介護保険）</SectionTitle>
+      <p className="text-xs text-stone-500 mb-1">※ 月の合計単位数に加算率を乗じて算定。実際の加算単位数は月毎の合計単位数により異なります。</p>
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr>
+            <TableHeader>加算区分</TableHeader>
+            <TableHeader>加算率</TableHeader>
+            <TableHeader>算定要件</TableHeader>
+          </tr>
+        </thead>
+        <tbody>
+          {[
+            { name: "訪問看護処遇改善加算（I）", rate: "1.8%", note: "月の合計単位数に対して算定。実効単位数に端数切り捨て" },
+            { name: "訪問看護処遇改善加算（II）", rate: "0.9%", note: "病院・診療所の場合は割引あり" },
+          ].map(r => (
+            <tr key={r.name}>
+              <TableCell className="font-medium">{r.name}</TableCell>
+              <TableCell right className="text-teal-700 font-bold">{r.rate}</TableCell>
+              <TableCell>{r.note}</TableCell>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <SectionTitle>訪問看護ベースアップ評価料（介護保険）</SectionTitle>
+      <p className="text-xs text-stone-500 mb-1">※ 訪問看護費を算定する利用者に対し、訪問日ごとに加算。</p>
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr>
+            <TableHeader>区分</TableHeader>
+            <TableHeader>単位数</TableHeader>
+            <TableHeader>目安金額</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
+            <TableHeader>算定要件</TableHeader>
+          </tr>
+        </thead>
+        <tbody>
+          {[
+            { name: "訪問看護ベースアップ評価料（I）", u: 1, note: "訪問日ごと・全事業所" },
+            { name: "訪問看護ベースアップ評価料（II）", u: 2, note: "訪問日ごと・ステーションのみ" },
+          ].map(r => (
+            <tr key={r.name}>
+              <TableCell className="font-medium">{r.name}</TableCell>
+              <TableCell right>{cu(r.u).units}</TableCell>
+              <TableCell right>{cu(r.u).full}</TableCell>
+              <TableCell right className="text-teal-700">{cu(r.u).p10}</TableCell>
+              <TableCell right className="text-teal-700">{cu(r.u).p20}</TableCell>
+              <TableCell right className="text-teal-700">{cu(r.u).p30}</TableCell>
+              <TableCell>{r.note}</TableCell>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -1466,7 +1535,63 @@ function PreventiveFeeTable() {
           ))}
         </tbody>
       </table>
-      <p className="text-xs text-stone-500">※ 夜間・早朝加算（25%）、深夜加算（50%）は訪問時間の単位数に応じて変動。処遇改善加算（1.8%）は月単位で算定。</p>
+       <p className="text-xs text-stone-500">※ 夜間・早朝加算（25%）、深夜加算（50%）は訪問時間の単位数に応じて変動。</p>
+
+      <SectionTitle>訪問看護処遇改善加算（介護予防）</SectionTitle>
+      <p className="text-xs text-stone-500 mb-1">※ 月の合計単位数に加算率を乗じて算定。実際の加算単位数は月毎の合計単位数により異なります。</p>
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr>
+            <TableHeader>加算区分</TableHeader>
+            <TableHeader>加算率</TableHeader>
+            <TableHeader>算定要件</TableHeader>
+          </tr>
+        </thead>
+        <tbody>
+          {[
+            { name: "訪問看護処遇改善加算（I）", rate: "1.8%", note: "月の合計単位数に対して算定。実効単位数に端数切り捨て" },
+            { name: "訪問看護処遇改善加算（II）", rate: "0.9%", note: "病院・診療所の場合は割引あり" },
+          ].map(r => (
+            <tr key={r.name}>
+              <TableCell className="font-medium">{r.name}</TableCell>
+              <TableCell right className="text-teal-700 font-bold">{r.rate}</TableCell>
+              <TableCell>{r.note}</TableCell>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <SectionTitle>訪問看護ベースアップ評価料（介護予防）</SectionTitle>
+      <p className="text-xs text-stone-500 mb-1">※ 訪問看護費を算定する利用者に対し、訪問日ごとに加算。</p>
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr>
+            <TableHeader>区分</TableHeader>
+            <TableHeader>単位数</TableHeader>
+            <TableHeader>目安金額</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
+            <TableHeader>算定要件</TableHeader>
+          </tr>
+        </thead>
+        <tbody>
+          {[
+            { name: "訪問看護ベースアップ評価料（I）", u: 1, note: "訪問日ごと・全事業所" },
+            { name: "訪問看護ベースアップ評価料（II）", u: 2, note: "訪問日ごと・ステーションのみ" },
+          ].map(r => (
+            <tr key={r.name}>
+              <TableCell className="font-medium">{r.name}</TableCell>
+              <TableCell right>{cu(r.u).units}</TableCell>
+              <TableCell right>{cu(r.u).full}</TableCell>
+              <TableCell right className="text-teal-700">{cu(r.u).p10}</TableCell>
+              <TableCell right className="text-teal-700">{cu(r.u).p20}</TableCell>
+              <TableCell right className="text-teal-700">{cu(r.u).p30}</TableCell>
+              <TableCell>{r.note}</TableCell>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

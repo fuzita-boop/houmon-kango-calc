@@ -165,7 +165,34 @@
       margin: 10mm 12mm;
     }
 
+    /* 料金表は横向き印刷 */
+    @page landscape-page {
+      size: A4 landscape;
+      margin: 8mm 10mm;
+    }
+    .print-landscape {
+      page: landscape-page;
+    }
+
     /* html/body をA4幅に強制（スマホビューポート幅の影響を排除） */
+    /* 料金表の場合は横向きなので 297mm に切り替え */
+    html.fee-table-print {
+      width: 297mm !important;
+      min-width: 297mm !important;
+      max-width: 297mm !important;
+    }
+    body.fee-table-print {
+      width: 297mm !important;
+      min-width: 297mm !important;
+      max-width: 297mm !important;
+    }
+    html.fee-table-print #print-content {
+      width: 277mm !important;
+    }
+    html.fee-table-print #print-content table {
+      width: 277mm !important;
+      max-width: 277mm !important;
+    }
     html {
       width: 210mm !important;
       min-width: 210mm !important;
