@@ -472,6 +472,16 @@ export function useVisitStore() {
     setPatientName("");
     setStationName("");
     setHomeStep(1);
+    // グローバル算定条件もリセット
+    setGlobalInsuranceMode("medical");
+    setGlobalMedicalInput({ ...defaultInput });
+    setGlobalCareInput({ ...defaultCareInput });
+    setGlobalPreventiveCareInput({ ...defaultPreventiveCareInput });
+    setGlobalPsychInput({ ...defaultPsychInput });
+    setGlobalCopayInput({ ...defaultCopayInput });
+    setGlobalBukkaTaiouType("type1");
+    setGlobalMedicalBaseupType("none");
+    setGlobalApplyShoguKaizen(false);
   }, []);
 
   return {

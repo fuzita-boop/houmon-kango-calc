@@ -1387,37 +1387,6 @@ function CareFeeTable() {
         </tbody>
       </table>
 
-      <SectionTitle>訪問看護ベースアップ評価料（介護保険）</SectionTitle>
-      <p className="text-xs text-stone-500 mb-1">※ 訪問看護費を算定する利用者に対し、訪問日ごとに加算。</p>
-      <table className="w-full border-collapse text-xs">
-        <thead>
-          <tr>
-            <TableHeader>区分</TableHeader>
-            <TableHeader>単位数</TableHeader>
-            <TableHeader>目安金額</TableHeader>
-            <TableHeader>1割</TableHeader>
-            <TableHeader>2割</TableHeader>
-            <TableHeader>3割</TableHeader>
-            <TableHeader>算定要件</TableHeader>
-          </tr>
-        </thead>
-        <tbody>
-          {[
-            { name: "訪問看護ベースアップ評価料（I）", u: 1, note: "訪問日ごと・全事業所" },
-            { name: "訪問看護ベースアップ評価料（II）", u: 2, note: "訪問日ごと・ステーションのみ" },
-          ].map(r => (
-            <tr key={r.name}>
-              <TableCell className="font-medium">{r.name}</TableCell>
-              <TableCell right>{cu(r.u).units}</TableCell>
-              <TableCell right>{cu(r.u).full}</TableCell>
-              <TableCell right className="text-teal-700">{cu(r.u).p10}</TableCell>
-              <TableCell right className="text-teal-700">{cu(r.u).p20}</TableCell>
-              <TableCell right className="text-teal-700">{cu(r.u).p30}</TableCell>
-              <TableCell>{r.note}</TableCell>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }
@@ -1561,37 +1530,6 @@ function PreventiveFeeTable() {
         </tbody>
       </table>
 
-      <SectionTitle>訪問看護ベースアップ評価料（介護予防）</SectionTitle>
-      <p className="text-xs text-stone-500 mb-1">※ 訪問看護費を算定する利用者に対し、訪問日ごとに加算。</p>
-      <table className="w-full border-collapse text-xs">
-        <thead>
-          <tr>
-            <TableHeader>区分</TableHeader>
-            <TableHeader>単位数</TableHeader>
-            <TableHeader>目安金額</TableHeader>
-            <TableHeader>1割</TableHeader>
-            <TableHeader>2割</TableHeader>
-            <TableHeader>3割</TableHeader>
-            <TableHeader>算定要件</TableHeader>
-          </tr>
-        </thead>
-        <tbody>
-          {[
-            { name: "訪問看護ベースアップ評価料（I）", u: 1, note: "訪問日ごと・全事業所" },
-            { name: "訪問看護ベースアップ評価料（II）", u: 2, note: "訪問日ごと・ステーションのみ" },
-          ].map(r => (
-            <tr key={r.name}>
-              <TableCell className="font-medium">{r.name}</TableCell>
-              <TableCell right>{cu(r.u).units}</TableCell>
-              <TableCell right>{cu(r.u).full}</TableCell>
-              <TableCell right className="text-teal-700">{cu(r.u).p10}</TableCell>
-              <TableCell right className="text-teal-700">{cu(r.u).p20}</TableCell>
-              <TableCell right className="text-teal-700">{cu(r.u).p30}</TableCell>
-              <TableCell>{r.note}</TableCell>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }
