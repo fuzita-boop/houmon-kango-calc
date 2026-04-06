@@ -923,6 +923,9 @@ function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
               <p>・本書は概算であり、実際の請求額と異なる場合があります。</p>
               <p>・患者様ご負担額は高額療養費制度等の適用前の概算です。</p>
               <p>・令和8年度（2026年度）診療報酬改定・令和6年度介護報酬改定に基づき算定しています。</p>
+              {hasShoguKaizen && monthlyShoguKaizenYen > 0 && (
+                <p>・処遇改善加算は「月の全訪問日の合計単位数 × 1.8%」を月末に1回算定しています（介護報酬改定第六期実績評価加算等に対応）。</p>
+              )}
             </div>
           </div>
         </div>
@@ -1979,16 +1982,50 @@ export default function Home() {
             />
           )}
           {store.globalInsuranceMode === "care" && (
-            <CareForm
-              input={store.globalCareInput}
-              onChange={(partial) => store.setGlobalCareInput(prev => ({ ...prev, ...partial }))}
-            />
+            <>
+              <CareForm
+                input={store.globalCareInput}
+                onChange={(partial) => store.setGlobalCareInput(prev => ({ ...prev, ...partial }))}
+              />
+              {/* 処遇改善加算（月合計単位数から計算） */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 w-4 h-4 accent-emerald-600 shrink-0"
+                    checked={store.globalApplyShoguKaizen}
+                    onChange={(e) => store.setGlobalApplyShoguKaizen(e.target.checked)}
+                  />
+                  <div>
+                    <div className="text-sm font-bold text-emerald-800">処遇改善加算を適用する</div>
+                    <div className="text-xs text-emerald-700 mt-0.5">月の合計単位数 × 1.8%を月末に1回算定。全訪問日に一括適用されます。</div>
+                  </div>
+                </label>
+              </div>
+            </>
           )}
           {store.globalInsuranceMode === "preventive" && (
-            <PreventiveCareForm
-              input={store.globalPreventiveCareInput}
-              onChange={(partial) => store.setGlobalPreventiveCareInput(prev => ({ ...prev, ...partial }))}
-            />
+            <>
+              <PreventiveCareForm
+                input={store.globalPreventiveCareInput}
+                onChange={(partial) => store.setGlobalPreventiveCareInput(prev => ({ ...prev, ...partial }))}
+              />
+              {/* 処遇改善加算（月合計単位数から計算） */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 w-4 h-4 accent-emerald-600 shrink-0"
+                    checked={store.globalApplyShoguKaizen}
+                    onChange={(e) => store.setGlobalApplyShoguKaizen(e.target.checked)}
+                  />
+                  <div>
+                    <div className="text-sm font-bold text-emerald-800">処遇改善加算を適用する</div>
+                    <div className="text-xs text-emerald-700 mt-0.5">月の合計単位数 × 1.8%を月末に1回算定。全訪問日に一括適用されます。</div>
+                  </div>
+                </label>
+              </div>
+            </>
           )}
           {store.globalInsuranceMode === "psychiatric" && (
             <PsychiatricForm
