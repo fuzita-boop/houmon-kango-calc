@@ -67,12 +67,24 @@ export interface VisitDay {
 
 export interface VisitDayResult extends VisitDay {
   total: number;        // 医療保険:円 / 介護保険:単位数
-  totalYen: number;     // 円換算
-  copayAmount: number;  // 患者自己負担額
+  totalYen: number;     // 円換算（処遇改善加算を除く）
+  copayAmount: number;  // 患者自己負担額（処遇改善加算を除く）
   bukkaRyo: number;     // 物価対応料（円）
-  shoguKaizenYen: number; // 処遇改善加算（円）
+  shoguKaizenYen: number; // 処遇改善加算（円）※月次集計でのみ使用
   baseupRyo: number;    // ベースアップ評価料（円）
   breakdown: { label: string; yen: number; units?: number }[]; // 料金内訳（介護保険はunits付き）
+}
+
+/** 月次集計結果（処遇改善加算を月合計で計算） */
+export interface MonthlySummaryResult {
+  records: VisitDayResult[];
+  totalUnitsForCare: number;   // 介護保険・介護予防の月合計単位数
+  shoguKaizenUnits: number;    // 処遇改善加算の単位数（月1回）
+  shoguKaizenYen: number;      // 処遇改善加算の円換算（月1回）
+  totalAmount: number;         // 月合計金額（処遇改善加算込み）
+  totalCopay: number;          // 月合計自己負担（処遇改善加算込み）
+  applyShoguKaizen: boolean;   // 処遇改善加算を適用するか
+  shoguKaizenRegionRate: number; // 処遇改善加算の地域単価
 }
 
 // ============================================================
@@ -270,13 +282,8 @@ function calcVisitDayResult(day: VisitDay): VisitDayResult {
     result.items.forEach(item => {
       if (!item.disabled) breakdown.push({ label: item.label, units: item.amount, yen: Math.round(item.amount * rate) });
     });
-    // 処遇改善加算
-    if (day.applyShoguKaizen) {
-      const kaizen = calcShoguKaizenKasan(total, rate);
-      shoguKaizenYen = kaizen.yen;
-      if (shoguKaizenYen > 0) breakdown.push({ label: "処遇改善加算（1.8%）", units: kaizen.units, yen: shoguKaizenYen });
-    }
-    totalYen = baseYen + shoguKaizenYen;
+    // 処遇改善加算は月次集計で月合計単位数から計算するため、ここでは計算しない
+    totalYen = baseYen;
     const copay = calcCopay(totalYen, { ...day.copayInput, insuranceType: "care" });
     copayAmount = copay.amount;
   } else if (day.insuranceMode === "preventive") {
@@ -288,13 +295,8 @@ function calcVisitDayResult(day: VisitDay): VisitDayResult {
     result.items.forEach(item => {
       if (!item.disabled) breakdown.push({ label: item.label, units: item.amount, yen: Math.round(item.amount * rate) });
     });
-    // 処遇改善加算
-    if (day.applyShoguKaizen) {
-      const kaizen = calcShoguKaizenKasan(total, rate);
-      shoguKaizenYen = kaizen.yen;
-      if (shoguKaizenYen > 0) breakdown.push({ label: "処遇改善加算（1.8%）", units: kaizen.units, yen: shoguKaizenYen });
-    }
-    totalYen = baseYen + shoguKaizenYen;
+    // 処遇改善加算は月次集計で月合計単位数から計算するため、ここでは計算しない
+    totalYen = baseYen;
     const copay = calcCopay(totalYen, { ...day.copayInput, insuranceType: "care" });
     copayAmount = copay.amount;
   } else if (day.insuranceMode === "psychiatric") {
@@ -457,8 +459,35 @@ export function useVisitStore() {
 
   const monthlyResults = currentMonthVisits.map(calcVisitDayResult);
 
-  const totalAmount = monthlyResults.reduce((sum, r) => sum + r.totalYen, 0);
-  const totalCopay = monthlyResults.reduce((sum, r) => sum + r.copayAmount, 0);
+  // 処遇改善加算は月合計単位数から計算（月1回のみ）
+  // 介護保険・介護予防の月合計単位数を集計
+  const careMonthlyTotalUnits = monthlyResults.reduce((sum, r) => {
+    if ((r.insuranceMode === "care" || r.insuranceMode === "preventive") && r.applyShoguKaizen) {
+      return sum + r.total;
+    }
+    return sum;
+  }, 0);
+  // 処遇改善加算を適用する訪問日が1件以上あれば計算
+  const hasShoguKaizen = monthlyResults.some(r =>
+    (r.insuranceMode === "care" || r.insuranceMode === "preventive") && r.applyShoguKaizen
+  );
+  // 地域単価は最初の介護保険訪問日の単価を使用
+  const firstCareResult = monthlyResults.find(r => r.insuranceMode === "care" || r.insuranceMode === "preventive");
+  const shoguKaizenRate = firstCareResult
+    ? CARE_REGION_RATES[firstCareResult.insuranceMode === "care"
+        ? firstCareResult.careInput.regionRate
+        : firstCareResult.preventiveCareInput.regionRate]
+    : 10.00;
+  const monthlyShoguKaizen = hasShoguKaizen
+    ? calcShoguKaizenKasan(careMonthlyTotalUnits, shoguKaizenRate)
+    : { units: 0, yen: 0 };
+
+  // 介護保険の自己負担割合（最初の介護保険訪問日から取得）
+  const firstCareCopayRatio = firstCareResult ? parseInt(firstCareResult.copayInput.careCopayRatio) / 10 : 0.1;
+  const shoguKaizenCopay = Math.floor(monthlyShoguKaizen.yen * firstCareCopayRatio);
+
+  const totalAmount = monthlyResults.reduce((sum, r) => sum + r.totalYen, 0) + monthlyShoguKaizen.yen;
+  const totalCopay = monthlyResults.reduce((sum, r) => sum + r.copayAmount, 0) + shoguKaizenCopay;
 
   const prevMonth = useCallback(() => {
     if (month === 1) { setYear(y => y - 1); setMonth(12); }
@@ -504,6 +533,12 @@ export function useVisitStore() {
     homeStep, setHomeStep,
     visitDays, currentMonthVisits, monthlyResults,
     totalAmount, totalCopay,
+    // 処遇改善加算（月合計単位数から計算した月1回の加算）
+    monthlyShoguKaizenUnits: monthlyShoguKaizen.units,
+    monthlyShoguKaizenYen: monthlyShoguKaizen.yen,
+    monthlyShoguKaizenCopay: shoguKaizenCopay,
+    careMonthlyTotalUnits,
+    hasShoguKaizen,
     selectedDate, setSelectedDate,
     patientName, setPatientName,
     stationName, setStationName,

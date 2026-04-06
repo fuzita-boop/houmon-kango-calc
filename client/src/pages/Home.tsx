@@ -668,7 +668,9 @@ interface MonthlySummaryPanelProps {
 
 function MonthlySummaryPanel({ store, onSelectDate }: MonthlySummaryPanelProps) {
   const [expanded, setExpanded] = useState(true);
-  const { monthlyResults, totalAmount, totalCopay, year, month } = store;
+  const { monthlyResults, totalAmount, totalCopay, year, month,
+    hasShoguKaizen, monthlyShoguKaizenUnits, monthlyShoguKaizenYen, monthlyShoguKaizenCopay,
+    careMonthlyTotalUnits } = store;
 
   if (monthlyResults.length === 0) {
     return (
@@ -748,6 +750,25 @@ function MonthlySummaryPanel({ store, onSelectDate }: MonthlySummaryPanelProps) 
               </button>
             );
           })}
+          {/* 処遇改善加算（月合計単位数から計算した月1回の加算） */}
+          {hasShoguKaizen && monthlyShoguKaizenYen > 0 && (
+            <div className="w-full flex items-center gap-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+              <div className="w-12 h-12 rounded-lg flex flex-col items-center justify-center shrink-0 bg-emerald-600 text-white">
+                <span className="text-xs font-bold leading-none">加算</span>
+                <span className="text-[9px] opacity-80">月合計</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium text-emerald-800">処遇改善加算（1.8%）</div>
+                <div className="text-xs text-emerald-600 mt-0.5">
+                  月合計{careMonthlyTotalUnits.toLocaleString()}単位 × 1.8% = {monthlyShoguKaizenUnits.toLocaleString()}単位
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="font-bold text-emerald-800">{formatYen(monthlyShoguKaizenYen)}</div>
+                <div className="text-xs text-emerald-600">負担 {formatYen(monthlyShoguKaizenCopay)}</div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -764,7 +785,9 @@ interface PrintPreviewProps {
 }
 
 function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
-  const { year, month, monthlyResults, totalAmount, totalCopay } = store;
+  const { year, month, monthlyResults, totalAmount, totalCopay,
+    hasShoguKaizen, monthlyShoguKaizenUnits, monthlyShoguKaizenYen, monthlyShoguKaizenCopay,
+    careMonthlyTotalUnits } = store;
   const handlePrint = () => window.print();
   const visitCountLabels = ["初回","2回目","3回目","4回目","5回目","6回目","7回目","8回目","9回目","10回目"];
 
@@ -873,6 +896,16 @@ function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
                   })}
                 </tbody>
                 <tfoot>
+                  {/* 処遇改善加算行（月合計単位数から計算した月1回の加算） */}
+                  {hasShoguKaizen && monthlyShoguKaizenYen > 0 && (
+                    <tr className="bg-emerald-50">
+                      <td colSpan={3} className="border border-stone-300 px-1.5 py-1 text-xs">処遇改善加算（1.8%）</td>
+                      <td className="border border-stone-300 px-1.5 py-1 text-xs text-emerald-700">月合計{careMonthlyTotalUnits.toLocaleString()}単位 × 1.8% = {monthlyShoguKaizenUnits.toLocaleString()}単位</td>
+                      {hasCare && <td className="border border-stone-300 px-1.5 py-1 text-right text-xs text-emerald-700">{monthlyShoguKaizenUnits.toLocaleString()}単位</td>}
+                      <td className="border border-stone-300 px-1.5 py-1 text-right text-xs font-medium text-emerald-700">{formatYen(monthlyShoguKaizenYen)}</td>
+                      <td className="border border-stone-300 px-1.5 py-1 text-right text-xs text-emerald-700">{formatYen(monthlyShoguKaizenCopay)}</td>
+                    </tr>
+                  )}
                   <tr className="bg-stone-100 font-bold">
                     <td colSpan={hasCare ? 4 : 4} className="border border-stone-300 px-1.5 py-1">合計</td>
                     {hasCare && <td className="border border-stone-300 px-1.5 py-1 text-right">{totalUnits.toLocaleString()}単位</td>}
