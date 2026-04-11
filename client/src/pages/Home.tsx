@@ -787,7 +787,9 @@ interface PrintPreviewProps {
 function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
   const { year, month, monthlyResults, totalAmount, totalCopay,
     hasShoguKaizen, monthlyShoguKaizenUnits, monthlyShoguKaizenYen, monthlyShoguKaizenCopay,
-    careMonthlyTotalUnits } = store;
+    careMonthlyTotalUnits, globalMedicalInput, globalPsychInput, globalInsuranceMode } = store;
+  const hasMedicalInfoLinkage = (globalInsuranceMode === "medical" && globalMedicalInput.medicalInfoLinkage)
+    || (globalInsuranceMode === "psychiatric" && globalPsychInput.medicalInfoLinkage);
   const handlePrint = () => window.print();
   const visitCountLabels = ["初回","2回目","3回目","4回目","5回目","6回目","7回目","8回目","9回目","10回目"];
 
@@ -925,6 +927,9 @@ function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
               <p>・令和8年度（2026年度）診療報酬改定・令和6年度介護報酬改定に基づき算定しています。</p>
               {hasShoguKaizen && monthlyShoguKaizenYen > 0 && (
                 <p>・処遇改善加算は「月の全訪問日の合計単位数 × 1.8%」を月末に1回算定しています（介護報酬改定第六期実績評価加算等に対応）。</p>
+              )}
+              {hasMedicalInfoLinkage && (
+                <p>・訪問看護医療情報連携加算（1,000円/月）は、ICTを用いた多職種連携による計画的管理を行った場合に月1回算定できます（医療保険のみ・届出要件あり）。</p>
               )}
             </div>
           </div>

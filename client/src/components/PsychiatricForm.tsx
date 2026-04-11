@@ -279,6 +279,16 @@ export default function PsychiatricForm({ input, onChange, baseupType = "none", 
         />
       </Section>
 
+      {/* 訪問看護医療情報連携加算 */}
+      <Section title="訪問看護医療情報連携加算（令和8年6月〜新設）">
+        <ToggleRow
+          label="医療情報連携加算を算定する"
+          checked={input.medicalInfoLinkage ?? false}
+          onChange={(v) => onChange({ medicalInfoLinkage: v })}
+          note="月1回・+1,000円。ICT活用による多職種連携。届出要件あり。在宅患者連携指導加算と並算不可。"
+        />
+      </Section>
+
       {/* 訪問看護ベースアップ評価料 */}
       {onBaseupTypeChange && (
         <Section title="訪問看護ベースアップ評価料（令和6年度改定）">

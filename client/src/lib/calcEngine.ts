@@ -170,6 +170,7 @@ export interface CalcInput {
   timeZone: TimeZone;
   timeZoneMonthDay: "1-15" | "16+";
   bukkaTaiou: boolean;             // 訪問看護物価対応料1（医療保険）
+  medicalInfoLinkage: boolean;      // 訪問看護医療情報連携加算（月1回・1,000円）
 }
 
 /** 計算条件の入力（介護保険） */
@@ -901,10 +902,20 @@ export function calculate(input: CalcInput): CalcResult {
   if (input.bukkaTaiou) {
     const fee = input.isFirstVisitOfMonth ? BUKKA_TAIOU_RYO.type1_first : BUKKA_TAIOU_RYO.type1_subsequent;
     items.push({
-      label: `訪問看護物価対応料1（${input.isFirstVisitOfMonth ? "月初日60円" : "2日目以20円"}）`,
+      label: `訪問看護物価対応料1（${input.isFirstVisitOfMonth ? "月初日60円" : "2日目以降20円"}）`,
       amount: fee,
       unit: "円",
       note: "令和9年6月以降2倍に引上げ予定",
+    });
+  }
+
+  // 訪問看護医療情報連携加算（令和8年6月〜新設）
+  if (input.medicalInfoLinkage) {
+    items.push({
+      label: "訪問看護医療情報連携加算",
+      amount: 1000,
+      unit: "円",
+      note: "月1回算定・ICT活用による多職種連携",
     });
   }
 
@@ -986,6 +997,7 @@ export const defaultInput: CalcInput = {
   timeZone: "normal",
   timeZoneMonthDay: "1-15",
   bukkaTaiou: false,
+  medicalInfoLinkage: false,
 };
 
 /** デフォルト入力値（介護保険） */
@@ -1067,6 +1079,7 @@ export interface PsychCalcInput {
   terminalCare: boolean;
   terminalCareType: TerminalCareType;
   bukkaTaiou: boolean;             // 訪問看護物価対応料2（精神科）
+  medicalInfoLinkage: boolean;      // 訪問看護医療情報連携加算（月1回・1,000円）
 }
 
 /** 自立支援医療の月額上限管理入力 */
@@ -1405,6 +1418,16 @@ export function calculatePsychiatric(input: PsychCalcInput): CalcResult {
     });
   }
 
+  // 訪問看護医療情報連携加算（令和8年6月〜新設）
+  if (input.medicalInfoLinkage) {
+    items.push({
+      label: "訪問看護医療情報連携加算",
+      amount: 1000,
+      unit: "円",
+      note: "月1回算定・ICT活用による多職種連携",
+    });
+  }
+
   const total = items.filter(i => !i.disabled).reduce((sum, item) => sum + item.amount, 0);
   return { total, items, warnings };
 }
@@ -1556,6 +1579,7 @@ export const defaultPsychInput: PsychCalcInput = {
   terminalCare: false,
   terminalCareType: "type1",
   bukkaTaiou: false,
+  medicalInfoLinkage: false,
 };
 
 /** デフォルト入力値（介護予防訪問看護） */
