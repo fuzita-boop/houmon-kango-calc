@@ -285,7 +285,7 @@ export default function PsychiatricForm({ input, onChange, baseupType = "none", 
           label="医療情報連携加算を算定する"
           checked={input.medicalInfoLinkage ?? false}
           onChange={(v) => onChange({ medicalInfoLinkage: v })}
-          note="月1回・+1,000円。ICT活用による多職種連携。届出要件あり。在宅患者連携指導加算と並算不可。"
+          note="月1回・+1,000円。ICT活用による多職種連携。在宅患者連携指導加算と並算不可。"
         />
       </Section>
 

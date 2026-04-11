@@ -505,11 +505,11 @@ export default function MedicalForm({ input, onChange, baseupType = "none", onBa
           label="医療情報連携加算を算定する"
           checked={input.medicalInfoLinkage ?? false}
           onChange={(v) => onChange({ medicalInfoLinkage: v })}
-          tooltip="ICTを用いた多職種連携による計画的管理。月1回・1,000円。地方厕生局への届出が必要。在宅患者連携指導加算との併算不可。"
+          tooltip="ICTを用いた多職種連携による計画的管理。月1回・1,000円。在宅患者連携指導加算との併算不可。"
         />
         {(input.medicalInfoLinkage ?? false) && (
           <div className="text-xs text-stone-500 bg-amber-50 rounded px-3 py-2 border border-amber-200">
-            月1回算定：<span className="font-bold text-amber-700">+1,000円</span>　ICT活用による多職種連携体制の整備が必要。届出要件あり。
+            月1回算定：<span className="font-bold text-amber-700">+1,000円</span>　ICT活用による多職種連携体制の整備が必要。
           </div>
         )}
       </Section>
