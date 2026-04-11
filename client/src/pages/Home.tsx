@@ -1282,16 +1282,40 @@ function MedicalFeeTable() {
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell>情報提供療養費Ⅰ</TableCell><TableCell right>1,500円</TableCell><TableCell>市区町村等への情報提供（月1回）</TableCell></tr>
-          <tr><TableCell>情報提供療養費Ⅱ</TableCell><TableCell right>1,500円</TableCell><TableCell>学校等への情報提供（年1回）</TableCell></tr>
-          <tr><TableCell>情報提供療養費Ⅲ</TableCell><TableCell right>1,500円</TableCell><TableCell>介護支援専門員等への情報提供（月1回）</TableCell></tr>
+          <tr><TableCell>情報提供療養費I</TableCell><TableCell right>1,500円</TableCell><TableCell>市区町村等への情報提供（月1回）</TableCell></tr>
+          <tr><TableCell>情報提供療養費II</TableCell><TableCell right>1,500円</TableCell><TableCell>学校等への情報提供（年1回）</TableCell></tr>
+          <tr><TableCell>情報提供療養費III</TableCell><TableCell right>1,500円</TableCell><TableCell>介護支援専門員等への情報提供（月1回）</TableCell></tr>
+        </tbody>
+      </table>
+
+      <SectionTitle>訪問看護医療情報連携加算（令和8年6月〜新設）</SectionTitle>
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr>
+            <TableHeader>加算名</TableHeader>
+            <TableHeader>金額</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
+            <TableHeader>算定要件</TableHeader>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <TableCell className="font-medium text-blue-700">訪問看護医療情報連携加算</TableCell>
+            <TableCell right className="text-blue-700">1,000円</TableCell>
+            <TableCell right className="text-emerald-700">100円</TableCell>
+            <TableCell right className="text-emerald-700">200円</TableCell>
+            <TableCell right className="text-emerald-700">300円</TableCell>
+            <TableCell>月1回・ICT活用による多職種連携</TableCell>
+          </tr>
         </tbody>
       </table>
     </div>
   );
 }
 
-function CareFeeTable() {
+function CareFeeTable(){
   // 介護保険：切り上げなし（円単位切り捨て）
   const cu = (units: number) => ({
     units: `${units.toLocaleString()}単位`,
@@ -1807,9 +1831,8 @@ function PsychiatricFeeTable() {
           <tr><TableCell>情報提供療養費Ⅲ</TableCell><TableCell right>1,500円</TableCell><TableCell>介護支援専門員等への情報提供（月1回）</TableCell></tr>
         </tbody>
       </table>
-
       <SectionTitle>訪問看護物価対応料（令和8年6月〜新設）</SectionTitle>
-      <p className="text-xs text-stone-500 mb-1">※ 精神科訪問看護基本療養費を算定する利用者に適用。</p>
+      <p className="text-xs text-stone-500 mb-1">※ 精神科訪問看護基本療養費を算定する利用者は物価対応料2を、訪問看護基本療養費I・II・IIIも合わせて算定する場合は物価対応料1も加算。</p>
       <table className="w-full border-collapse text-xs">
         <thead>
           <tr>
@@ -1819,8 +1842,34 @@ function PsychiatricFeeTable() {
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell className="font-medium text-blue-700">物価対応料2</TableCell><TableCell right className="text-blue-700">20円/日</TableCell><TableCell>1日につき算定</TableCell></tr>
-          <tr><TableCell className="text-stone-500 text-xs" colSpan={3}>※令和9年6月以降は40円/日に引き上げ予定</TableCell></tr>
+          <tr><TableCell className="font-medium text-blue-700">物価対応料1（月初日）</TableCell><TableCell right className="text-blue-700">60円</TableCell><TableCell>月の初回訪問日（基本療養費I・II・III算定時）</TableCell></tr>
+          <tr><TableCell className="font-medium text-blue-700">物価対応料1（2日目以降）</TableCell><TableCell right className="text-blue-700">20円/日</TableCell><TableCell>2回目以降の訪問日（基本療養費I・II・III算定時）</TableCell></tr>
+          <tr><TableCell className="font-medium text-blue-700">物価対応料2</TableCell><TableCell right className="text-blue-700">20円/日</TableCell><TableCell>1日につき算定（基本療養費IV算定時）</TableCell></tr>
+          <tr><TableCell className="text-stone-500 text-xs" colSpan={3}>※令和9年6月以降：物価対応料1は月初日120円・2日目以降40円、物価対応料2は40円/日に引き上げ予定</TableCell></tr>
+        </tbody>
+      </table>
+
+      <SectionTitle>訪問看護医療情報連携加算（令和8年6月〜新設）</SectionTitle>
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr>
+            <TableHeader>加算名</TableHeader>
+            <TableHeader>金額</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
+            <TableHeader>算定要件</TableHeader>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <TableCell className="font-medium text-blue-700">訪問看護医療情報連携加算</TableCell>
+            <TableCell right className="text-blue-700">1,000円</TableCell>
+            <TableCell right className="text-emerald-700">100円</TableCell>
+            <TableCell right className="text-emerald-700">200円</TableCell>
+            <TableCell right className="text-emerald-700">300円</TableCell>
+            <TableCell>月1回・ICT活用による多職種連携</TableCell>
+          </tr>
         </tbody>
       </table>
 
