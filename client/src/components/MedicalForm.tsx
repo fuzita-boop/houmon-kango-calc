@@ -491,7 +491,7 @@ export default function MedicalForm({ input, onChange, baseupConfig = DEFAULT_BA
           label="物価対応料1を算定する"
           checked={input.bukkaTaiou ?? false}
           onChange={(v) => onChange({ bukkaTaiou: v })}
-          tooltip="訪問看護基本療養費Ⅰ・Ⅱ・Ⅲ算定者。月初日60円、以降各日20円（令和9年6月以降2倍）"
+          tooltip="区分番号02（訪問看護管理療養費）算定者が対象。月初日60円、以降各日20円（令和9年6月以降2倍）"
         />
         {(input.bukkaTaiou ?? false) && (
           <div className="text-xs text-stone-500 bg-amber-50 rounded px-3 py-2 border border-amber-200">

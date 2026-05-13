@@ -323,7 +323,7 @@ export default function PsychiatricForm({ input, onChange, baseupConfig = DEFAUL
           label="物価対応料2を算定する"
           checked={input.bukkaTaiou ?? false}
           onChange={(v) => onChange({ bukkaTaiou: v })}
-          note="精神科訪問看護基本療養費算定者 +20円/日（令和9年6月以降は40円/日）"
+          note="区分番号02（訪問看護管理療養費）算定者が対象。精神科訪問看護基本療養費算定時も区分番号02を合わせて算定するため対象。+20円/日（令和9年6月以降は40円/日）"
         />
       </Section>
 

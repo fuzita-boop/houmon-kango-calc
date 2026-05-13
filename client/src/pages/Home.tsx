@@ -1288,7 +1288,7 @@ function MedicalFeeTable() {
       </table>
 
       <SectionTitle>訪問看護物価対応料（令和8年6月〜新設）</SectionTitle>
-      <p className="text-xs text-stone-500 mb-1">※ 訪問看護基本療養費Ⅰ・Ⅱ・Ⅲを算定する利用者に適用。</p>
+      <p className="text-xs text-stone-500 mb-1">※ 区分番号02（訪問看護管理療養費）を算定している利用者が対象。精神科訪問看護基本療養費（区分番号01-2）算定時も区分番号02を合わせて算定するため対象。</p>
       <table className="w-full border-collapse text-xs">
         <thead>
           <tr>
@@ -1896,7 +1896,7 @@ function PsychiatricFeeTable() {
         </tbody>
       </table>
       <SectionTitle>訪問看護物価対応料（令和8年6月〜新設）</SectionTitle>
-      <p className="text-xs text-stone-500 mb-1">※ 精神科訪問看護基本療養費を算定する利用者は物価対応料2を、訪問看護基本療養費I・II・IIIも合わせて算定する場合は物価対応料1も加算。</p>
+      <p className="text-xs text-stone-500 mb-1">※ 物価対応料1は区分番号02（訪問看護管理療養費）算定者が対象。精神科訪問看護基本療養費（区分番号01-2）算定時も区分番号02を合わせて算定するため対象。物価対応料2は区分番号04（包括型訪問看護療養費）算定者が対象。</p>
       <table className="w-full border-collapse text-xs">
         <thead>
           <tr>
@@ -1906,9 +1906,9 @@ function PsychiatricFeeTable() {
           </tr>
         </thead>
         <tbody>
-          <tr><TableCell className="font-medium text-blue-700">物価対応料1（月初日）</TableCell><TableCell right className="text-blue-700">60円</TableCell><TableCell>月の初回訪問日（基本療養費I・II・III算定時）</TableCell></tr>
-          <tr><TableCell className="font-medium text-blue-700">物価対応料1（2日目以降）</TableCell><TableCell right className="text-blue-700">20円/日</TableCell><TableCell>2回目以降の訪問日（基本療養費I・II・III算定時）</TableCell></tr>
-          <tr><TableCell className="font-medium text-blue-700">物価対応料2</TableCell><TableCell right className="text-blue-700">20円/日</TableCell><TableCell>1日につき算定（基本療養費IV算定時）</TableCell></tr>
+          <tr><TableCell className="font-medium text-blue-700">物価対応料1（月初日）</TableCell><TableCell right className="text-blue-700">60円</TableCell><TableCell>月の初回訪問日（区分番号02算定者）</TableCell></tr>
+          <tr><TableCell className="font-medium text-blue-700">物価対応料1（2日目以降）</TableCell><TableCell right className="text-blue-700">20円/日</TableCell><TableCell>2回目以降の訪問日（区分番号02算定者）</TableCell></tr>
+          <tr><TableCell className="font-medium text-blue-700">物価対応料2</TableCell><TableCell right className="text-blue-700">20円/日</TableCell><TableCell>1日につき算定（区分番号04・包括型訪問看護療養費算定者）</TableCell></tr>
           <tr><TableCell className="text-stone-500 text-xs" colSpan={3}>※令和9年6月以降：物価対応料1は月初日120円・2日目以降40円、物価対応料2は40円/日に引き上げ予定</TableCell></tr>
         </tbody>
       </table>
