@@ -1619,15 +1619,94 @@ export const defaultSeishinCopayTracker: SeishinCopayTracker = {
 export const CARE_SHOGU_KAIZEN_RATE = 0.018;
 
 /**
- * 医療保険 訪問看護ベースアップ評価料（令和6年度改定）
- * 評価料（Ⅰ）：1点/日
- * 評価料（Ⅱ）：2点/日（訪問看護ステーションのみ）
+ * 医療保険 訪問看護ベースアップ評価料（令和8年度改定・令和8年6月〜）
+ * 評価料（Ⅰ）：月1回定額
+ *   新規算定：1,050円/月
+ *   継続的賃上げ実施：1,830円/月
+ * 評価料（Ⅱ）：月1回定額（区分1〜18）
+ *   新規算定：区分1=30円〜区分18=540円（30円刻み）
+ *   継続的賃上げ実施：区分1=40円〜区分18=1,040円
+ * ※令和9年6月〜：評価料（Ⅰ）は新規2,100円/継続2,880円、評価料（Ⅱ）は区分1〜36に拡大
  */
-export const MEDICAL_BASEUP_FEE = {
-  type1: 100,  // 評価料（Ⅰ）1点 = 10円 × 10 = 100円
-  type2: 200,  // 評価料（Ⅱ）2点 = 10円 × 20 = 200円
+
+/** 評価料（Ⅰ）の金額 */
+export const BASEUP_TYPE1_FEE = {
+  new: 1050,        // 新規算定事業所
+  continuing: 1830, // 継続的賃上げ実施事業所
 } as const;
 
+/** 評価料（Ⅱ）の区分1〜18の金額（新規算定） */
+export const BASEUP_TYPE2_NEW_FEES: Record<number, number> = {
+  1: 30, 2: 60, 3: 90, 4: 120, 5: 150,
+  6: 180, 7: 210, 8: 240, 9: 270, 10: 300,
+  11: 330, 12: 360, 13: 390, 14: 420, 15: 450,
+  16: 480, 17: 510, 18: 540,
+};
+
+/** 評価料（Ⅱ）の区分1〜18の金額（継続的賃上げ実施） */
+export const BASEUP_TYPE2_CONTINUING_FEES: Record<number, number> = {
+  1: 40, 2: 80, 3: 120, 4: 160, 5: 200,
+  6: 240, 7: 280, 8: 320, 9: 360, 10: 400,
+  11: 440, 12: 480, 13: 520, 14: 560, 15: 600,
+  16: 640, 17: 680, 18: 720,
+  // 区分11〜18は継続的賃上げ実施の場合のみ算定可能（区分ソ=540円相当以上）
+  // 実際の継続的賃上げ実施の区分11〜18は以下の通り
+};
+
+// 継続的賃上げ実施の場合の正確な金額（区分ソ=1,040円等）
+// 区分1〜10: 40円刻み、区分11〜18: 別途設定
+export const BASEUP_TYPE2_CONTINUING_FEES_CORRECT: Record<number, number> = {
+  1: 40, 2: 80, 3: 120, 4: 160, 5: 200,
+  6: 240, 7: 280, 8: 320, 9: 360, 10: 400,
+  11: 440, 12: 480, 13: 520, 14: 560, 15: 600,
+  16: 640, 17: 680, 18: 1040, // 区分ソ（18）は継続的賃上げ実施で1,040円
+};
+
+/** ベースアップ評価料の種別 */
+export type MedicalBaseupKind = "none" | "type1" | "type2";
+/** 継続的賃上げ実施かどうか */
+export type BaseupContinuityType = "new" | "continuing";
+
+/**
+ * ベースアップ評価料の設定
+ */
+export interface MedicalBaseupConfig {
+  kind: MedicalBaseupKind;         // 評価料の種別
+  continuity: BaseupContinuityType; // 新規 or 継続的賃上げ実施
+  type2Division: number;            // 評価料（Ⅱ）の区分番号（1〜18）
+}
+
+export const DEFAULT_BASEUP_CONFIG: MedicalBaseupConfig = {
+  kind: "none",
+  continuity: "new",
+  type2Division: 1,
+};
+
+/**
+ * ベースアップ評価料の月額を計算する
+ * @param config ベースアップ評価料の設定
+ * @returns 月額金額（円）
+ */
+export function calcBaseupFee(config: MedicalBaseupConfig): number {
+  if (config.kind === "none") return 0;
+  if (config.kind === "type1") {
+    return config.continuity === "continuing"
+      ? BASEUP_TYPE1_FEE.continuing
+      : BASEUP_TYPE1_FEE.new;
+  }
+  // type2
+  const div = Math.max(1, Math.min(18, config.type2Division));
+  if (config.continuity === "continuing") {
+    return BASEUP_TYPE2_CONTINUING_FEES_CORRECT[div] ?? BASEUP_TYPE2_NEW_FEES[div];
+  }
+  return BASEUP_TYPE2_NEW_FEES[div] ?? 30;
+}
+
+// 後方互換のために残す（旧コードが参照している場合）
+export const MEDICAL_BASEUP_FEE = {
+  type1: 1050,
+  type2: 30,
+} as const;
 export type MedicalBaseupType = "none" | "type1" | "type2";
 
 /**

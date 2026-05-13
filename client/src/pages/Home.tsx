@@ -670,7 +670,8 @@ function MonthlySummaryPanel({ store, onSelectDate }: MonthlySummaryPanelProps) 
   const [expanded, setExpanded] = useState(true);
   const { monthlyResults, totalAmount, totalCopay, year, month,
     hasShoguKaizen, monthlyShoguKaizenUnits, monthlyShoguKaizenYen, monthlyShoguKaizenCopay,
-    careMonthlyTotalUnits } = store;
+    careMonthlyTotalUnits,
+    monthlyBaseupYen, hasBaseup, baseupCopay } = store;
 
   if (monthlyResults.length === 0) {
     return (
@@ -751,6 +752,22 @@ function MonthlySummaryPanel({ store, onSelectDate }: MonthlySummaryPanelProps) 
             );
           })}
           {/* 処遇改善加算（月合計単位数から計算した月1回の加算） */}
+          {hasBaseup && monthlyBaseupYen > 0 && (
+            <div className="w-full flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+              <div className="w-12 h-12 rounded-lg flex flex-col items-center justify-center shrink-0 bg-amber-600 text-white">
+                <span className="text-xs font-bold leading-none">評価料</span>
+                <span className="text-xs leading-none mt-0.5">月1回</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-amber-900">訪問看護ベースアップ評価料</div>
+                <div className="text-xs text-amber-700 mt-0.5">月に1回定額算定</div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="font-bold text-amber-800">{formatYen(monthlyBaseupYen)}</div>
+                <div className="text-xs text-amber-600">負担 {formatYen(baseupCopay)}</div>
+              </div>
+            </div>
+          )}
           {hasShoguKaizen && monthlyShoguKaizenYen > 0 && (
             <div className="w-full flex items-center gap-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
               <div className="w-12 h-12 rounded-lg flex flex-col items-center justify-center shrink-0 bg-emerald-600 text-white">
@@ -787,7 +804,8 @@ interface PrintPreviewProps {
 function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
   const { year, month, monthlyResults, totalAmount, totalCopay,
     hasShoguKaizen, monthlyShoguKaizenUnits, monthlyShoguKaizenYen, monthlyShoguKaizenCopay,
-    careMonthlyTotalUnits, globalMedicalInput, globalPsychInput, globalInsuranceMode } = store;
+    careMonthlyTotalUnits, globalMedicalInput, globalPsychInput, globalInsuranceMode,
+    monthlyBaseupYen, hasBaseup, baseupCopay, globalBaseupConfig } = store;
   const hasMedicalInfoLinkage = (globalInsuranceMode === "medical" && globalMedicalInput.medicalInfoLinkage)
     || (globalInsuranceMode === "psychiatric" && globalPsychInput.medicalInfoLinkage);
   const handlePrint = () => window.print();
@@ -898,7 +916,17 @@ function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
                   })}
                 </tbody>
                 <tfoot>
-                  {/* 処遇改善加算行（月合計単位数から計算した月1回の加算） */}
+                  {/* ベースアップ評価料行（月に1回定額） */}
+                  {hasBaseup && monthlyBaseupYen > 0 && (
+                    <tr className="bg-amber-50">
+                      <td colSpan={3} className="border border-stone-300 px-1.5 py-1 text-xs">訪問看護ベースアップ評価料（{globalBaseupConfig.kind === "type1" ? "Ⅰ" : "Ⅱ"}）</td>
+                      <td className="border border-stone-300 px-1.5 py-1 text-xs text-amber-700">月に1回定額算定（{globalBaseupConfig.continuity === "continuing" ? "継続的賃上げ実施" : "新規"}{globalBaseupConfig.kind === "type2" ? `・区分${globalBaseupConfig.type2Division}` : ""}）</td>
+                      {hasCare && <td className="border border-stone-300 px-1.5 py-1 text-right text-xs text-amber-700">-</td>}
+                      <td className="border border-stone-300 px-1.5 py-1 text-right text-xs font-medium text-amber-700">{formatYen(monthlyBaseupYen)}</td>
+                      <td className="border border-stone-300 px-1.5 py-1 text-right text-xs text-amber-700">{formatYen(baseupCopay)}</td>
+                    </tr>
+                  )}
+                  {/* 処遇改善加算行（月合計単位数から計算した月に1回の加算） */}
                   {hasShoguKaizen && monthlyShoguKaizenYen > 0 && (
                     <tr className="bg-emerald-50">
                       <td colSpan={3} className="border border-stone-300 px-1.5 py-1 text-xs">処遇改善加算（1.8%）</td>
@@ -929,7 +957,10 @@ function PrintPreview({ store, onClose, onShowFeeTable }: PrintPreviewProps) {
                 <p>・処遇改善加算は「月の全訪問日の合計単位数 × 1.8%」を月末に1回算定しています（介護報酬改定第六期実績評価加算等に対応）。</p>
               )}
               {hasMedicalInfoLinkage && (
-                <p>・訪問看護医療情報連携加算（1,000円/月）は、ICTを用いた多職種連携による計画的管理を行った場合に月1回算定できます（医療保険のみ）。</p>
+                <p>・訪問看護医療情報連携加算（1,000円/月）は、ICTを用いた多職種連携による計画的管理を行った場合に月に1回算定できます（医療保険のみ）。</p>
+              )}
+              {hasBaseup && monthlyBaseupYen > 0 && (
+                <p>・訪問看護ベースアップ評価料は月に1回定額算定です（令和8年6月〜改定。評価料（Ⅰ）：新规1,050円・継続的賃上げ実施1,830円。評価料（Ⅱ）：区分1〜18、ステーション限定）。</p>
               )}
             </div>
           </div>
@@ -1240,8 +1271,9 @@ function MedicalFeeTable() {
             { name: "深夜訪問看護加算", yen: 4200, note: "22〜6時" },
             { name: "訪問看護ターミナルケア療養費1", yen: 25000, note: "在宅死亡月" },
             { name: "訪問看護ターミナルケア療養費2", yen: 10000, note: "特養等死亡月" },
-            { name: "訪問看護ベースアップ評価料（Ⅰ）", yen: 100, note: "職員処遇改善/日" },
-            { name: "訪問看護ベースアップ評価料（Ⅱ）", yen: 200, note: "ステーションのみ/日" },
+            { name: "訪問看護ベースアップ評価料（Ⅰ）新規", yen: 1050, note: "月1回定額・令和8年6月〜" },
+            { name: "訪問看護ベースアップ評価料（Ⅰ）継続的賃上げ", yen: 1830, note: "月1回定額・継続的賃上げ実施事業所" },
+            { name: "訪問看護ベースアップ評価料（Ⅱ）区分1〜18", yen: 30, note: "月1回定額・ステーションのみ。区分1=30円〜区分18=540円（新規）" },
           ].map(r => (
             <tr key={r.name}>
               <TableCell>{r.name}</TableCell>
@@ -2031,8 +2063,8 @@ export default function Home() {
             <MedicalForm
               input={store.globalMedicalInput}
               onChange={(partial) => store.setGlobalMedicalInput(prev => ({ ...prev, ...partial }))}
-              baseupType={store.globalMedicalBaseupType}
-              onBaseupTypeChange={(v) => store.setGlobalMedicalBaseupType(v)}
+              baseupConfig={store.globalBaseupConfig}
+              onBaseupConfigChange={(v) => store.setGlobalBaseupConfig(v)}
             />
           )}
           {store.globalInsuranceMode === "care" && (
@@ -2085,8 +2117,8 @@ export default function Home() {
             <PsychiatricForm
               input={store.globalPsychInput}
               onChange={(partial) => store.setGlobalPsychInput(prev => ({ ...prev, ...partial }))}
-              baseupType={store.globalMedicalBaseupType}
-              onBaseupTypeChange={(v) => store.setGlobalMedicalBaseupType(v)}
+              baseupConfig={store.globalBaseupConfig}
+              onBaseupConfigChange={(v) => store.setGlobalBaseupConfig(v)}
             />
           )}
 

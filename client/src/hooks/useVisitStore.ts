@@ -22,6 +22,7 @@ import type {
   SeishinCopayTracker,
   BukkaTaiouType,
   MedicalBaseupType,
+  MedicalBaseupConfig,
 } from "@/lib/calcEngine";
 import {
   defaultInput,
@@ -38,6 +39,8 @@ import {
   calcSeishinCopayWithTracker,
   calcShoguKaizenKasan,
   calcBukkaTaiouRyo,
+  calcBaseupFee,
+  DEFAULT_BASEUP_CONFIG,
   MEDICAL_BASEUP_FEE,
   CARE_REGION_RATES,
 } from "@/lib/calcEngine";
@@ -57,8 +60,8 @@ export interface VisitDay {
   seishinCopayTracker: SeishinCopayTracker;
   /** 訪問看護物価対応料の種別 */
   bukkaTaiouType: BukkaTaiouType;
-  /** 訪問看護ベースアップ評価料の種別 */
-  medicalBaseupType: MedicalBaseupType;
+  /** 訪問看護ベースアップ評価料の設定（令和8年度改定・月1回定額） */
+  medicalBaseupConfig: MedicalBaseupConfig;
   /** 介護保険：処遇改善加算を適用するか */
   applyShoguKaizen: boolean;
   /** 自動コピーされた訪問日かどうか（UIでバナー表示用） */
@@ -81,10 +84,13 @@ export interface MonthlySummaryResult {
   totalUnitsForCare: number;   // 介護保険・介護予防の月合計単位数
   shoguKaizenUnits: number;    // 処遇改善加算の単位数（月1回）
   shoguKaizenYen: number;      // 処遇改善加算の円換算（月1回）
-  totalAmount: number;         // 月合計金額（処遇改善加算込み）
-  totalCopay: number;          // 月合計自己負担（処遇改善加算込み）
+  totalAmount: number;         // 月合計金額（処遇改善加算・ベースアップ評価料込み）
+  totalCopay: number;          // 月合計自己負担（処遇改善加算・ベースアップ評価料込み）
   applyShoguKaizen: boolean;   // 処遇改善加算を適用するか
   shoguKaizenRegionRate: number; // 処遇改善加算の地域単価
+  /** ベースアップ評価料（月次集計・月に1回） */
+  monthlyBaseupYen: number;    // ベースアップ評価料の月額（円）
+  hasBaseup: boolean;          // ベースアップ評価料を適用するか
 }
 
 // ============================================================
@@ -197,7 +203,7 @@ function createDefaultVisitDay(date: string, mode: InsuranceMode): VisitDay {
     copayInput: { ...defaultCopayInput, insuranceType: mode === "medical" || mode === "psychiatric" ? "medical" : "care" },
     seishinCopayTracker: { ...defaultSeishinCopayTracker },
     bukkaTaiouType: "none",
-    medicalBaseupType: "none",
+    medicalBaseupConfig: { ...DEFAULT_BASEUP_CONFIG },
     applyShoguKaizen: false,
     wasAutoCopied: false,
   };
@@ -235,7 +241,7 @@ function createAutoCopiedVisitDay(
     copayInput: { ...prevDay.copayInput },
     seishinCopayTracker: { ...prevDay.seishinCopayTracker },
     bukkaTaiouType: prevDay.bukkaTaiouType,
-    medicalBaseupType: prevDay.medicalBaseupType,
+    medicalBaseupConfig: { ...prevDay.medicalBaseupConfig },
     applyShoguKaizen: prevDay.applyShoguKaizen,
     wasAutoCopied: true,
   };
@@ -264,13 +270,8 @@ function calcVisitDayResult(day: VisitDay): VisitDayResult {
     // 物価対応料（type1）
     bukkaRyo = calcBukkaTaiouRyo(day.bukkaTaiouType, day.medicalInput.isFirstVisitOfMonth);
     if (bukkaRyo > 0) breakdown.push({ label: "診療報酬物価対応料", yen: bukkaRyo });
-    // ベースアップ評価料
-    baseupRyo = day.medicalBaseupType !== "none" ? MEDICAL_BASEUP_FEE[day.medicalBaseupType as "type1" | "type2"] : 0;
-    if (baseupRyo > 0) {
-      const baseupLabel = day.medicalBaseupType === "type1" ? "診療報酬ベースアップ評価料（1）" : "診療報酬ベースアップ評価料（2）";
-      breakdown.push({ label: baseupLabel, yen: baseupRyo });
-    }
-    totalYen = result.total + bukkaRyo + baseupRyo;
+    // ベースアップ評価料は月次集計で月に1回算定するため、日次計算からは除外
+    totalYen = result.total + bukkaRyo;
     const copay = calcCopay(totalYen, day.copayInput);
     copayAmount = copay.amount;
   } else if (day.insuranceMode === "care") {
@@ -309,13 +310,8 @@ function calcVisitDayResult(day: VisitDay): VisitDayResult {
     // 物価対応料（type2）
     bukkaRyo = calcBukkaTaiouRyo(day.bukkaTaiouType, day.psychInput.isFirstVisitOfMonth);
     if (bukkaRyo > 0) breakdown.push({ label: "診療報酬物価対応料", yen: bukkaRyo });
-    // ベースアップ評価料（精神科も医療保険と同じ評価料を適用）
-    baseupRyo = day.medicalBaseupType !== "none" ? MEDICAL_BASEUP_FEE[day.medicalBaseupType as "type1" | "type2"] : 0;
-    if (baseupRyo > 0) {
-      const baseupLabel = day.medicalBaseupType === "type1" ? "診療報酬ベースアップ評価料（1）" : "診療報酬ベースアップ評価料（2）";
-      breakdown.push({ label: baseupLabel, yen: baseupRyo });
-    }
-    totalYen = result.total + bukkaRyo + baseupRyo;
+    // ベースアップ評価料は月次集計で月に1回算定するため、日次計算からは除外
+    totalYen = result.total + bukkaRyo;
     // 自立支援医療の月額上限管理
     const baseCopay = calcCopay(totalYen, day.copayInput);
     if (day.copayInput.kohiType === "seishin") {
@@ -350,7 +346,7 @@ export function useVisitStore() {
   const [globalPsychInput, setGlobalPsychInput] = useState<import("@/lib/calcEngine").PsychCalcInput>({ ...defaultPsychInput });
   const [globalCopayInput, setGlobalCopayInput] = useState<import("@/lib/calcEngine").PatientCopayInput>({ ...defaultCopayInput });
   const [globalBukkaTaiouType, setGlobalBukkaTaiouType] = useState<import("@/lib/calcEngine").BukkaTaiouType>("type1"); // 物価対応料はデフォルトON
-  const [globalMedicalBaseupType, setGlobalMedicalBaseupType] = useState<import("@/lib/calcEngine").MedicalBaseupType>("none");
+  const [globalBaseupConfig, setGlobalBaseupConfig] = useState<import("@/lib/calcEngine").MedicalBaseupConfig>({ ...DEFAULT_BASEUP_CONFIG });
   const [globalApplyShoguKaizen, setGlobalApplyShoguKaizen] = useState(false);
 
   // ホーム画面のステップ（種別選択→算定条件→負担割合→カレンダー）
@@ -397,7 +393,7 @@ export function useVisitStore() {
             ),
             copayInput: { ...globalCopayInput, insuranceType: globalInsuranceMode === "medical" || globalInsuranceMode === "psychiatric" ? "medical" : "care" },
             bukkaTaiouType: globalBukkaTaiouType,
-            medicalBaseupType: globalMedicalBaseupType,
+            medicalBaseupConfig: { ...globalBaseupConfig },
             applyShoguKaizen: globalApplyShoguKaizen,
           };
           return [...prev, newDay];
@@ -408,7 +404,7 @@ export function useVisitStore() {
         return [...prev, newDay];
       });
     },
-    [globalInsuranceMode, globalMedicalInput, globalCareInput, globalPreventiveCareInput, globalPsychInput, globalCopayInput, globalBukkaTaiouType, globalMedicalBaseupType, globalApplyShoguKaizen]
+    [globalInsuranceMode, globalMedicalInput, globalCareInput, globalPreventiveCareInput, globalPsychInput, globalCopayInput, globalBukkaTaiouType, globalBaseupConfig, globalApplyShoguKaizen]
   );
 
   const updateVisitDay = useCallback((date: string, updates: Partial<VisitDay>) => {
@@ -486,8 +482,19 @@ export function useVisitStore() {
   const firstCareCopayRatio = firstCareResult ? parseInt(firstCareResult.copayInput.careCopayRatio) / 10 : 0.1;
   const shoguKaizenCopay = Math.floor(monthlyShoguKaizen.yen * firstCareCopayRatio);
 
-  const totalAmount = monthlyResults.reduce((sum, r) => sum + r.totalYen, 0) + monthlyShoguKaizen.yen;
-  const totalCopay = monthlyResults.reduce((sum, r) => sum + r.copayAmount, 0) + shoguKaizenCopay;
+  // ベースアップ評価料は月に1回定額（医療保険・精神科のみ適用）
+  const hasBaseup = globalBaseupConfig.kind !== "none" &&
+    monthlyResults.some(r => r.insuranceMode === "medical" || r.insuranceMode === "psychiatric");
+  const monthlyBaseupYen = hasBaseup ? calcBaseupFee(globalBaseupConfig) : 0;
+  // ベースアップ評価料の自己負担（医療保険の負担割合を最初の医療保険訪問日から取得）
+  const firstMedicalResult = monthlyResults.find(r => r.insuranceMode === "medical" || r.insuranceMode === "psychiatric");
+  const medicalCopayRatio = firstMedicalResult
+    ? (firstMedicalResult.copayInput.copayRatio === "1" ? 0.1 : firstMedicalResult.copayInput.copayRatio === "2" ? 0.2 : 0.3)
+    : 0.3;
+  const baseupCopay = Math.floor(monthlyBaseupYen * medicalCopayRatio);
+
+  const totalAmount = monthlyResults.reduce((sum, r) => sum + r.totalYen, 0) + monthlyShoguKaizen.yen + monthlyBaseupYen;
+  const totalCopay = monthlyResults.reduce((sum, r) => sum + r.copayAmount, 0) + shoguKaizenCopay + baseupCopay;
 
   const prevMonth = useCallback(() => {
     if (month === 1) { setYear(y => y - 1); setMonth(12); }
@@ -515,7 +522,7 @@ export function useVisitStore() {
     setGlobalPsychInput({ ...defaultPsychInput });
     setGlobalCopayInput({ ...defaultCopayInput });
     setGlobalBukkaTaiouType("type1");
-    setGlobalMedicalBaseupType("none");
+    setGlobalBaseupConfig({ ...DEFAULT_BASEUP_CONFIG });
     setGlobalApplyShoguKaizen(false);
   }, []);
 
@@ -528,17 +535,21 @@ export function useVisitStore() {
     globalPsychInput, setGlobalPsychInput,
     globalCopayInput, setGlobalCopayInput,
     globalBukkaTaiouType, setGlobalBukkaTaiouType,
-    globalMedicalBaseupType, setGlobalMedicalBaseupType,
+    globalBaseupConfig, setGlobalBaseupConfig,
     globalApplyShoguKaizen, setGlobalApplyShoguKaizen,
     homeStep, setHomeStep,
     visitDays, currentMonthVisits, monthlyResults,
     totalAmount, totalCopay,
-    // 処遇改善加算（月合計単位数から計算した月1回の加算）
+    // 処遇改善加算（月合計単位数から計算した月に1回の加算）
     monthlyShoguKaizenUnits: monthlyShoguKaizen.units,
     monthlyShoguKaizenYen: monthlyShoguKaizen.yen,
     monthlyShoguKaizenCopay: shoguKaizenCopay,
     careMonthlyTotalUnits,
     hasShoguKaizen,
+    // ベースアップ評価料（月次集計・月に1回）
+    monthlyBaseupYen,
+    hasBaseup,
+    baseupCopay,
     selectedDate, setSelectedDate,
     patientName, setPatientName,
     stationName, setStationName,

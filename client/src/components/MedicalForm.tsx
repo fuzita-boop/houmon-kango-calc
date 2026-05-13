@@ -22,9 +22,11 @@ import type {
   InfoProvisionType,
   ManagementFeeType,
   TerminalCareType,
-  MedicalBaseupType,
+  MedicalBaseupConfig,
+  MedicalBaseupKind,
+  BaseupContinuityType,
 } from "@/lib/calcEngine";
-import { getDisabledFields } from "@/lib/calcEngine";
+import { getDisabledFields, BASEUP_TYPE1_FEE, BASEUP_TYPE2_NEW_FEES, BASEUP_TYPE2_CONTINUING_FEES_CORRECT, DEFAULT_BASEUP_CONFIG } from "@/lib/calcEngine";
 
 interface RadioGroupProps<T extends string> {
   label: string;
@@ -130,11 +132,11 @@ function Section({ title, children, badge }: SectionProps) {
 interface MedicalFormProps {
   input: CalcInput;
   onChange: (updates: Partial<CalcInput>) => void;
-  baseupType?: MedicalBaseupType;
-  onBaseupTypeChange?: (v: MedicalBaseupType) => void;
+  baseupConfig?: MedicalBaseupConfig;
+  onBaseupConfigChange?: (v: MedicalBaseupConfig) => void;
 }
 
-export default function MedicalForm({ input, onChange, baseupType = "none", onBaseupTypeChange }: MedicalFormProps) {
+export default function MedicalForm({ input, onChange, baseupConfig = DEFAULT_BASEUP_CONFIG, onBaseupConfigChange }: MedicalFormProps) {
   const disabled = getDisabledFields(input);
   const isComprehensive = input.mode === "comprehensive";
 
@@ -514,28 +516,79 @@ export default function MedicalForm({ input, onChange, baseupType = "none", onBa
         )}
       </Section>
 
-      {/* 訪問看護ベースアップ評価料 */}
-      {onBaseupTypeChange && (
-        <Section title="訪問看護ベースアップ評価料（令和6年度改定）">
-          <RadioGroup<MedicalBaseupType>
+      {/* 訪問看護ベースアップ評価料（令和8年度改定） */}
+      {onBaseupConfigChange && (
+        <Section title="訪問看護ベースアップ評価料（令和8年6月〜改定）" badge="改定">
+          <RadioGroup<MedicalBaseupKind>
             label="評価料の種別"
-            value={baseupType}
-            onChange={onBaseupTypeChange}
+            value={baseupConfig.kind}
+            onChange={(v) => onBaseupConfigChange({ ...baseupConfig, kind: v })}
             options={[
               { value: "none",  label: "算定しない" },
-              { value: "type1", label: "評価料（Ⅰ）", sublabel: "+100円/日" },
-              { value: "type2", label: "評価料（Ⅱ）", sublabel: "+200円/日（ステーションのみ）" },
+              { value: "type1", label: "評価料（Ⅰ）", sublabel: "月に1回定額" },
+              { value: "type2", label: "評価料（Ⅱ）", sublabel: "月に1回定額（ステーションのみ）" },
             ]}
-            tooltip="訪問看護ステーション：Ⅰ・Ⅱ両方算定可。病院・診療所：Ⅰのみ"
+            tooltip="訪問看護ステーション：Ⅰ・Ⅱ両方算定可。病院・診療所：Ⅰのみ。月に1回定額算定。"
           />
-          {baseupType !== "none" && (
-            <div className="text-xs text-stone-500 bg-amber-50 rounded px-3 py-2 border border-amber-200">
-              {baseupType === "type1" ? (
-                <>評価料（Ⅰ）：<span className="font-bold text-amber-700">+100円/日</span></>
-              ) : (
-                <>評価料（Ⅱ）：<span className="font-bold text-amber-700">+200円/日</span>（ステーション限定）</>
+          {baseupConfig.kind !== "none" && (
+            <>
+              <RadioGroup<BaseupContinuityType>
+                label="継続的賃上げ実施の有無"
+                value={baseupConfig.continuity}
+                onChange={(v) => onBaseupConfigChange({ ...baseupConfig, continuity: v })}
+                options={[
+                  { value: "new",        label: "新規算定（継続的賃上げなし）" },
+                  { value: "continuing", label: "継続的賃上げ実施事業所" },
+                ]}
+                tooltip="令和6年度改定から継続的に賃上げを実施している場合は「継続的賃上げ実施」を選択"
+              />
+              {baseupConfig.kind === "type2" && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium text-stone-700">評価料（Ⅱ）の区分（1〜18）</span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <InfoIcon className="w-3.5 h-3.5 text-stone-400 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-[240px] text-xs">事業所の訪問看護ステーション従業者数等に応じて区分が決まります。区分1=30円〜区分18=540円（新規）</TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <select
+                    className="w-full border border-stone-300 rounded-md px-3 py-2 text-sm bg-white"
+                    value={baseupConfig.type2Division}
+                    onChange={(e) => onBaseupConfigChange({ ...baseupConfig, type2Division: Number(e.target.value) })}
+                  >
+                    {Array.from({ length: 18 }, (_, i) => i + 1).map(div => {
+                      const fee = baseupConfig.continuity === "continuing"
+                        ? (BASEUP_TYPE2_CONTINUING_FEES_CORRECT[div] ?? BASEUP_TYPE2_NEW_FEES[div])
+                        : BASEUP_TYPE2_NEW_FEES[div];
+                      return (
+                        <option key={div} value={div}>区分{div}：{fee.toLocaleString()}円/月</option>
+                      );
+                    })}
+                  </select>
+                </div>
               )}
-            </div>
+              <div className="text-xs text-stone-500 bg-amber-50 rounded px-3 py-2 border border-amber-200">
+                {baseupConfig.kind === "type1" ? (
+                  <>評価料（Ⅰ）：<span className="font-bold text-amber-700">
+                    {baseupConfig.continuity === "continuing"
+                      ? `${BASEUP_TYPE1_FEE.continuing.toLocaleString()}円/月`
+                      : `${BASEUP_TYPE1_FEE.new.toLocaleString()}円/月`}
+                  </span>を月に1回算定</>
+                ) : (
+                  <>評価料（Ⅱ）区分{baseupConfig.type2Division}：<span className="font-bold text-amber-700">
+                    {(() => {
+                      const div = baseupConfig.type2Division;
+                      const fee = baseupConfig.continuity === "continuing"
+                        ? (BASEUP_TYPE2_CONTINUING_FEES_CORRECT[div] ?? BASEUP_TYPE2_NEW_FEES[div])
+                        : BASEUP_TYPE2_NEW_FEES[div];
+                      return `${fee.toLocaleString()}円/月`;
+                    })()}
+                  </span>を月に1回算定（ステーション限定）</>
+                )}
+              </div>
+            </>
           )}
         </Section>
       )}

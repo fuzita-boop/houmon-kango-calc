@@ -6,14 +6,15 @@
  * - 自立支援医療の月額上限管理
  */
 
-import type { PsychCalcInput, SeishinCopayTracker, ManagementFeeType, BukkaTaiouType, MedicalBaseupType } from "@/lib/calcEngine";
+import type { PsychCalcInput, SeishinCopayTracker, ManagementFeeType, BukkaTaiouType, MedicalBaseupConfig, MedicalBaseupKind, BaseupContinuityType } from "@/lib/calcEngine";
+import { BASEUP_TYPE1_FEE, BASEUP_TYPE2_NEW_FEES, BASEUP_TYPE2_CONTINUING_FEES_CORRECT, DEFAULT_BASEUP_CONFIG } from "@/lib/calcEngine";
 import { cn } from "@/lib/utils";
 
 interface PsychiatricFormProps {
   input: PsychCalcInput;
   onChange: (updates: Partial<PsychCalcInput>) => void;
-  baseupType?: MedicalBaseupType;
-  onBaseupTypeChange?: (v: MedicalBaseupType) => void;
+  baseupConfig?: MedicalBaseupConfig;
+  onBaseupConfigChange?: (v: MedicalBaseupConfig) => void;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -93,7 +94,7 @@ function SelectRow({
   );
 }
 
-export default function PsychiatricForm({ input, onChange, baseupType = "none", onBaseupTypeChange }: PsychiatricFormProps) {
+export default function PsychiatricForm({ input, onChange, baseupConfig = DEFAULT_BASEUP_CONFIG, onBaseupConfigChange }: PsychiatricFormProps) {
   const isType4 = input.basicFeeType === "type4";
 
   return (
@@ -289,38 +290,91 @@ export default function PsychiatricForm({ input, onChange, baseupType = "none", 
         />
       </Section>
 
-      {/* 訪問看護ベースアップ評価料 */}
-      {onBaseupTypeChange && (
-        <Section title="訪問看護ベースアップ評価料（令和6年度改定）">
+      {/* 訪問看護ベースアップ評価料（令和8年度改定） */}
+      {onBaseupConfigChange && (
+        <Section title="訪問看護ベースアップ評価料（令和8年6月〜改定）">
           <div className="space-y-2">
-            {([
-              { value: "none" as MedicalBaseupType,  label: "算定しない",    note: "" },
-              { value: "type1" as MedicalBaseupType, label: "評価料（Ⅰ）",  note: "+100円/日" },
-              { value: "type2" as MedicalBaseupType, label: "評価料（Ⅱ）",  note: "+200円/日（ステーションのみ）" },
-            ] as { value: MedicalBaseupType; label: string; note: string }[]).map((opt) => (
+            {(["none", "type1", "type2"] as MedicalBaseupKind[]).map((kind) => (
               <label
-                key={opt.value}
+                key={kind}
                 className={cn(
                   "flex items-center justify-between py-2 px-3 rounded-lg cursor-pointer transition-colors",
-                  baseupType === opt.value
+                  baseupConfig.kind === kind
                     ? "bg-purple-50 border border-purple-200"
                     : "bg-stone-50 border border-stone-100"
                 )}
               >
                 <div>
-                  <div className="text-sm font-medium text-stone-800">{opt.label}</div>
-                  {opt.note && <div className="text-xs text-stone-500">{opt.note}</div>}
+                  <div className="text-sm font-medium text-stone-800">
+                    {kind === "none" ? "算定しない" : kind === "type1" ? "評価料（Ⅰ）" : "評価料（Ⅱ）"}
+                  </div>
+                  <div className="text-xs text-stone-500">
+                    {kind === "type1" && `月に1回定額`}
+                    {kind === "type2" && `月に1回定額（ステーション限定）`}
+                  </div>
                 </div>
                 <input
                   type="radio"
-                  name="baseupType"
-                  checked={baseupType === opt.value}
-                  onChange={() => onBaseupTypeChange(opt.value)}
+                  name="baseupKind"
+                  checked={baseupConfig.kind === kind}
+                  onChange={() => onBaseupConfigChange({ ...baseupConfig, kind })}
                   className="w-4 h-4 accent-purple-600"
                 />
               </label>
             ))}
           </div>
+          {baseupConfig.kind !== "none" && (
+            <div className="space-y-2 mt-2">
+              <div className="text-xs font-medium text-stone-600">継続的賃上げ実施の有無;</div>
+              {(["new", "continuing"] as BaseupContinuityType[]).map((cont) => (
+                <label key={cont} className={cn(
+                  "flex items-center justify-between py-2 px-3 rounded-lg cursor-pointer transition-colors",
+                  baseupConfig.continuity === cont ? "bg-purple-50 border border-purple-200" : "bg-stone-50 border border-stone-100"
+                )}>
+                  <div className="text-sm font-medium text-stone-800">
+                    {cont === "new" ? "新規算定（継続的賃上げなし）" : "継続的賃上げ実施事業所"}
+                  </div>
+                  <input type="radio" name="baseupContinuity" checked={baseupConfig.continuity === cont}
+                    onChange={() => onBaseupConfigChange({ ...baseupConfig, continuity: cont })}
+                    className="w-4 h-4 accent-purple-600" />
+                </label>
+              ))}
+              {baseupConfig.kind === "type2" && (
+                <div className="space-y-1">
+                  <div className="text-xs font-medium text-stone-600">評価料（Ⅱ）区分（1〜18）</div>
+                  <select
+                    className="w-full border border-stone-300 rounded-md px-3 py-2 text-sm bg-white"
+                    value={baseupConfig.type2Division}
+                    onChange={(e) => onBaseupConfigChange({ ...baseupConfig, type2Division: Number(e.target.value) })}
+                  >
+                    {Array.from({ length: 18 }, (_, i) => i + 1).map(div => {
+                      const fee = baseupConfig.continuity === "continuing"
+                        ? (BASEUP_TYPE2_CONTINUING_FEES_CORRECT[div] ?? BASEUP_TYPE2_NEW_FEES[div])
+                        : BASEUP_TYPE2_NEW_FEES[div];
+                      return <option key={div} value={div}>区分{div}：{fee.toLocaleString()}円/月</option>;
+                    })}
+                  </select>
+                </div>
+              )}
+              <div className="text-xs text-stone-500 bg-amber-50 rounded px-3 py-2 border border-amber-200">
+                {baseupConfig.kind === "type1" ? (
+                  <>評価料（Ⅰ）：<span className="font-bold text-amber-700">
+                    {baseupConfig.continuity === "continuing" ? `${BASEUP_TYPE1_FEE.continuing.toLocaleString()}円/月` : `${BASEUP_TYPE1_FEE.new.toLocaleString()}円/月`}
+                  </span>を月に1回算定</>
+                ) : (
+                  <>評価料（Ⅱ）区分{baseupConfig.type2Division}：<span className="font-bold text-amber-700">
+                    {(() => {
+                      const div = baseupConfig.type2Division;
+                      const fee = baseupConfig.continuity === "continuing"
+                        ? (BASEUP_TYPE2_CONTINUING_FEES_CORRECT[div] ?? BASEUP_TYPE2_NEW_FEES[div])
+                        : BASEUP_TYPE2_NEW_FEES[div];
+                      return `${fee.toLocaleString()}円/月`;
+                    })()}
+                  </span>を月に1回算定（ステーション限定）</>
+                )}
+              </div>
+            </div>
+          )}
         </Section>
       )}
 
