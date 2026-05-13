@@ -1067,9 +1067,13 @@ export interface PsychCalcInput {
   longTimeVisit: boolean;         // 長時間精神科訪問看護加算 5,200円
   timeZone: TimeZone;
   multipleStaff: boolean;         // 複数名精神科訪問看護加算
-  multipleStaffType: "nurse" | "helper"; // 看護師等/看護補助者
+  multipleStaffType: "nurse" | "junkanshi" | "helper"; // 看護師等/准看護師/看護補助者・精神保健福祉士
+  multipleStaffBuildingCount: PsychBuildingCount; // 同一建物居住者区分
+  multipleStaffDailyCount: "once" | "twice" | "three"; // 1日1回/2回/3回以上（看護師等・准看護師のみ）
   multipleVisit: boolean;         // 精神科複数回訪問加算
   multipleVisitCount: PsychMultipleVisitCount;
+  multipleVisitBuildingCount: PsychBuildingCount; // 同一建物居住者区分
+  multipleVisitIsAfter21: boolean; // 3回以上の場合：月21日目以降か否か
   h24Support: boolean;            // 24時間対応体制加算
   h24SupportType: "ika" | "ro";
   specialManagement: boolean;
@@ -1138,16 +1142,61 @@ const PSYCH_BASIC_FEE_III: Record<WeeklyVisitDay, Record<PsychVisitDuration, num
 /** 精神科基本療養費Ⅳ（外泊中） */
 const PSYCH_BASIC_FEE_IV = 8500;
 
-/** 精神科訪問看護 加算 */
+/** 精神科訪問看護 加算（固定金額） */
 const PSYCH_ADDITIONS = {
   emergencyVisit:      2650,  // 精神科緊急訪問看護加算
   longTimeVisit:       5200,  // 長時間精神科訪問看護加算
   earlyLate:           2100,  // 夜間・早朝訪問看護加算
   midnight:            4200,  // 深夜訪問看護加算
-  multipleStaffNurse:  4500,  // 複数名精神科訪問看護加算（看護師等）
-  multipleStaffHelper: 3000,  // 複数名精神科訪問看護加算（看護補助者）
-  multipleVisitTwice:  4500,  // 精神科複数回訪問加算（2回）
-  multipleVisitThree:  8000,  // 精神科複数回訪問加算（3回以上）
+};
+
+/** 同一建物居住者区分（精神科複数名・複数回加算用） */
+export type PsychBuildingCount = "1-2" | "10-19" | "20-49" | "50+";
+
+/**
+ * 複数名精神科訪問看護加算（令和8年度改定）
+ * 1-2人（通常）は1日1回・2回・3回以上で区分あり
+ * 10-19人以上は建物区分のみ（回数区分なし）
+ */
+export const PSYCH_MULTIPLE_STAFF_NURSE_FEES: Record<PsychBuildingCount, { once: number; twice: number; three: number }> = {
+  "1-2":   { once: 4500, twice: 9000, three: 13500 }, // 1-2人（通常）
+  "10-19": { once: 3400, twice: 6880, three: 11050 }, // 同一建物10-19人
+  "20-49": { once: 3000, twice: 6070, three:  9750 }, // 同一建物20-49人
+  "50+":   { once: 2700, twice: 5460, three:  8770 }, // 同一建物50人以上
+};
+
+export const PSYCH_MULTIPLE_STAFF_JUNKANSHI_FEES: Record<PsychBuildingCount, { once: number; twice: number; three: number }> = {
+  "1-2":   { once: 3800, twice: 7600, three: 11400 }, // 1-2人（通常）
+  "10-19": { once: 2800, twice: 5600, three:  9220 }, // 同一建物10-19人
+  "20-49": { once: 2500, twice: 5000, three:  8230 }, // 同一建物20-49人
+  "50+":   { once: 2200, twice: 4400, three:  7240 }, // 同一建物50人以上
+};
+
+/** 複数名精神科訪問看護加算（看護補助者・精神保健福祉士）建物区分のみ・回数区分なし */
+export const PSYCH_MULTIPLE_STAFF_HELPER_FEES: Record<PsychBuildingCount, number> = {
+  "1-2":   3000, // 1-2人（通常）
+  "10-19": 2100, // 同一建物10-19人
+  "20-49": 1900, // 同一建物20-49人
+  "50+":   1600, // 同一建物50人以上
+};
+
+/**
+ * 精神科複数回訪問加算（令和8年度改定）
+ * 2回：建物区分のみ（月日区分なし）
+ * 3回以上：建物区分×月20日目まで/21日目以降
+ */
+export const PSYCH_MULTIPLE_VISIT_TWICE_FEES: Record<PsychBuildingCount, number> = {
+  "1-2":   7200, // 1-2人（通常）
+  "10-19": 3700, // 同一建物10-19人
+  "20-49": 3500, // 同一建物20-49人
+  "50+":   3300, // 同一建物50人以上
+};
+
+export const PSYCH_MULTIPLE_VISIT_THREE_FEES: Record<PsychBuildingCount, { upto20: number; from21: number }> = {
+  "1-2":   { upto20: 7200, from21: 7200 }, // 1-2人（通常）※月日区分なし
+  "10-19": { upto20: 6300, from21: 5200 }, // 同一建物10-19人
+  "20-49": { upto20: 4800, from21: 3500 }, // 同一建物20-49人
+  "50+":   { upto20: 4100, from21: 3000 }, // 同一建物50人以上
 };
 
 // ============================================================
@@ -1333,12 +1382,31 @@ export function calculatePsychiatric(input: PsychCalcInput): CalcResult {
 
   // 複数名精神科訪問看護加算
   if (input.multipleStaff) {
-    const fee = input.multipleStaffType === "nurse"
-      ? PSYCH_ADDITIONS.multipleStaffNurse
-      : PSYCH_ADDITIONS.multipleStaffHelper;
-    const typeLabel = input.multipleStaffType === "nurse" ? "看護師等" : "看護補助者";
+    const bc = input.multipleStaffBuildingCount;
+    const dc = input.multipleStaffDailyCount;
+    let fee = 0;
+    let typeLabel = "";
+    if (input.multipleStaffType === "nurse") {
+      fee = PSYCH_MULTIPLE_STAFF_NURSE_FEES[bc][dc];
+      typeLabel = "仙6の保健師・看護師又は作業療法士と同時";
+    } else if (input.multipleStaffType === "junkanshi") {
+      fee = PSYCH_MULTIPLE_STAFF_JUNKANSHI_FEES[bc][dc];
+      typeLabel = "准看護師と同時";
+    } else {
+      fee = PSYCH_MULTIPLE_STAFF_HELPER_FEES[bc];
+      typeLabel = "看護補助者・精神保健福祉士と同時";
+    }
+    const bcLabel: Record<PsychBuildingCount, string> = {
+      "1-2": "建物内1-2人",
+      "10-19": "建物内10-19人",
+      "20-49": "建物内20-49人",
+      "50+": "建物内50人以上",
+    };
+    const dcLabel = input.multipleStaffType !== "helper"
+      ? `・1日${dc === "once" ? "1" : dc === "twice" ? "2" : "3以上"}回`
+      : "";
     items.push({
-      label: `複数名精神科訪問看護加算（${typeLabel}）`,
+      label: `複数名精神科訪問看護加算（${typeLabel}・${bcLabel[bc]}${dcLabel}）`,
       amount: fee,
       unit: "円",
     });
@@ -1346,10 +1414,24 @@ export function calculatePsychiatric(input: PsychCalcInput): CalcResult {
 
   // 精神科複数回訪問加算
   if (input.multipleVisit) {
-    const fee = input.multipleVisitCount === "twice"
-      ? PSYCH_ADDITIONS.multipleVisitTwice
-      : PSYCH_ADDITIONS.multipleVisitThree;
-    const countLabel = input.multipleVisitCount === "twice" ? "1日2回" : "1日3回以上";
+    const bc = input.multipleVisitBuildingCount;
+    const bcLabel: Record<PsychBuildingCount, string> = {
+      "1-2": "建物内1-2人",
+      "10-19": "建物内10-19人",
+      "20-49": "建物内20-49人",
+      "50+": "建物内50人以上",
+    };
+    let fee = 0;
+    let countLabel = "";
+    if (input.multipleVisitCount === "twice") {
+      fee = PSYCH_MULTIPLE_VISIT_TWICE_FEES[bc];
+      countLabel = `1日2回・${bcLabel[bc]}`;
+    } else {
+      const dayKey = input.multipleVisitIsAfter21 ? "from21" : "upto20";
+      fee = PSYCH_MULTIPLE_VISIT_THREE_FEES[bc][dayKey];
+      const dayLabel = input.multipleVisitIsAfter21 ? "月21日目以降" : "月20日目まで";
+      countLabel = `1日3回以上・${bcLabel[bc]}・${dayLabel}`;
+    }
     items.push({
       label: `精神科複数回訪問加算（${countLabel}）`,
       amount: fee,
@@ -1568,8 +1650,12 @@ export const defaultPsychInput: PsychCalcInput = {
   timeZone: "normal",
   multipleStaff: false,
   multipleStaffType: "nurse",
+  multipleStaffBuildingCount: "1-2",
+  multipleStaffDailyCount: "once",
   multipleVisit: false,
   multipleVisitCount: "twice",
+  multipleVisitBuildingCount: "1-2",
+  multipleVisitIsAfter21: false,
   h24Support: false,
   h24SupportType: "ika",
   specialManagement: false,
@@ -1653,13 +1739,13 @@ export const BASEUP_TYPE2_CONTINUING_FEES: Record<number, number> = {
   // 実際の継続的賃上げ実施の区分11〜18は以下の通り
 };
 
-// 継続的賃上げ実施の場合の正確な金額（区分ソ=1,040円等）
-// 区分1〜10: 40円刻み、区分11〜18: 別途設定
+// 継続的賃上げ実施の場合の正確な金額（令和8年厚生労働省告示第74号より）
+// 区分1〜10: 40円刻み（40〜400円）、区分11〜18: 80円刻み（480〜1,040円）
 export const BASEUP_TYPE2_CONTINUING_FEES_CORRECT: Record<number, number> = {
   1: 40, 2: 80, 3: 120, 4: 160, 5: 200,
   6: 240, 7: 280, 8: 320, 9: 360, 10: 400,
-  11: 440, 12: 480, 13: 520, 14: 560, 15: 600,
-  16: 640, 17: 680, 18: 1040, // 区分ソ（18）は継続的賃上げ実施で1,040円
+  11: 480, 12: 560, 13: 640, 14: 720, 15: 800,
+  16: 880, 17: 960, 18: 1040,
 };
 
 /** ベースアップ評価料の種別 */

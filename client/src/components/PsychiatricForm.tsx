@@ -6,7 +6,7 @@
  * - 自立支援医療の月額上限管理
  */
 
-import type { PsychCalcInput, SeishinCopayTracker, ManagementFeeType, BukkaTaiouType, MedicalBaseupConfig, MedicalBaseupKind, BaseupContinuityType } from "@/lib/calcEngine";
+import type { PsychCalcInput, SeishinCopayTracker, ManagementFeeType, BukkaTaiouType, MedicalBaseupConfig, MedicalBaseupKind, BaseupContinuityType, PsychBuildingCount } from "@/lib/calcEngine";
 import { BASEUP_TYPE1_FEE, BASEUP_TYPE2_NEW_FEES, BASEUP_TYPE2_CONTINUING_FEES_CORRECT, DEFAULT_BASEUP_CONFIG } from "@/lib/calcEngine";
 import { cn } from "@/lib/utils";
 
@@ -215,18 +215,44 @@ export default function PsychiatricForm({ input, onChange, baseupConfig = DEFAUL
           label="複数名精神科訪問看護加算"
           checked={input.multipleStaff}
           onChange={(v) => onChange({ multipleStaff: v })}
-          note="2名以上での訪問"
+          note="2名以上での訪問（同一建物居住者数により金額が異なります）"
         />
         {input.multipleStaff && (
-          <SelectRow
-            label="同行者の種別"
-            value={input.multipleStaffType}
-            onChange={(v) => onChange({ multipleStaffType: v as "nurse" | "helper" })}
-            options={[
-              { value: "nurse", label: "看護師等 +4,500円" },
-              { value: "helper", label: "看護補助者 +3,000円（週1まで）" },
-            ]}
-          />
+          <>
+            <SelectRow
+              label="同行者の種別"
+              value={input.multipleStaffType}
+              onChange={(v) => onChange({ multipleStaffType: v as "nurse" | "junkanshi" | "helper" })}
+              options={[
+                { value: "nurse", label: "保健師・看護師・作業療法士" },
+                { value: "junkanshi", label: "准看護師" },
+                { value: "helper", label: "看護補助者・精神保健福祉士（週1まで）" },
+              ]}
+            />
+            <SelectRow
+              label="同一建物居住者数"
+              value={input.multipleStaffBuildingCount ?? "1-2"}
+              onChange={(v) => onChange({ multipleStaffBuildingCount: v as PsychBuildingCount })}
+              options={[
+                { value: "1-2", label: "1〜2人" },
+                { value: "10-19", label: "10〜19人" },
+                { value: "20-49", label: "20〜49人" },
+                { value: "50+", label: "50人以上" },
+              ]}
+            />
+            {(input.multipleStaffType === "nurse" || input.multipleStaffType === "junkanshi") && (
+              <SelectRow
+                label="1日の訪問回数"
+                value={input.multipleStaffDailyCount ?? "once"}
+                onChange={(v) => onChange({ multipleStaffDailyCount: v as "once" | "twice" | "three" })}
+                options={[
+                  { value: "once", label: "1回" },
+                  { value: "twice", label: "2回" },
+                  { value: "three", label: "3回以上" },
+                ]}
+              />
+            )}
+          </>
         )}
 
         <ToggleRow
@@ -236,15 +262,36 @@ export default function PsychiatricForm({ input, onChange, baseupConfig = DEFAUL
           note="1日に複数回訪問（厚生労働大臣が定める状態）"
         />
         {input.multipleVisit && (
-          <SelectRow
-            label="訪問回数"
-            value={input.multipleVisitCount}
-            onChange={(v) => onChange({ multipleVisitCount: v as PsychCalcInput["multipleVisitCount"] })}
-            options={[
-              { value: "twice", label: "1日2回 +4,500円" },
-              { value: "three_plus", label: "1日3回以上 +8,000円（特別訪問看護指示書要）" },
-            ]}
-          />
+          <>
+            <SelectRow
+              label="訪問回数"
+              value={input.multipleVisitCount}
+              onChange={(v) => onChange({ multipleVisitCount: v as PsychCalcInput["multipleVisitCount"] })}
+              options={[
+                { value: "twice", label: "1日2回" },
+                { value: "three_plus", label: "1日3回以上（特別訪問看護指示書要）" },
+              ]}
+            />
+            <SelectRow
+              label="同一建物居住者数"
+              value={input.multipleVisitBuildingCount ?? "1-2"}
+              onChange={(v) => onChange({ multipleVisitBuildingCount: v as PsychBuildingCount })}
+              options={[
+                { value: "1-2", label: "1〜2人" },
+                { value: "10-19", label: "10〜19人" },
+                { value: "20-49", label: "20〜49人" },
+                { value: "50+", label: "50人以上" },
+              ]}
+            />
+            {input.multipleVisitCount === "three_plus" && (
+              <ToggleRow
+                label="月21日目以降の訪問"
+                checked={input.multipleVisitIsAfter21 ?? false}
+                onChange={(v) => onChange({ multipleVisitIsAfter21: v })}
+                note="3回以上の場合：月20日目まで（高額）と月21日目以降（低額）で金額が異なります"
+              />
+            )}
+          </>
         )}
       </Section>
 

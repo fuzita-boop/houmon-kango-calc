@@ -1822,17 +1822,13 @@ function PsychiatricFeeTable() {
         <tbody>
           {[
             { name: "精神科緊急訪問看護加算", y: 2650, note: "定期外緊急訪問" },
-            { name: "長時間精神科訪問看護加算", y: 5200, note: "週１回（条件下週３回）" },
-            { name: "複数名精神科訪問看護加算（看護師等）", y: 4500, note: "2名同行" },
-            { name: "複数名精神科訪問看護加算（看護補助者）", y: 3000, note: "週１回まで" },
-            { name: "精神科複数回訪問加算（1日２回）", y: 4500, note: "厚生労働大臣が定める状態" },
-            { name: "精神科複数回訪問加算（1日３回以上）", y: 8000, note: "特別訪問看護指示書" },
-            { name: "夜間・早朝訪問看護加算", y: 2100, note: "18〜22時/6〜8時" },
-            { name: "深夜訪問看護加算", y: 4200, note: "22〜6時" },
-            { name: "24時間対応体制加算 イ", y: 6800, note: "月１回" },
-            { name: "24時間対応体制加算 ロ", y: 6520, note: "月１回" },
-            { name: "特別管理加算（１）", y: 5000, note: "月１回" },
-            { name: "特別管理加算（２）", y: 2500, note: "月１回" },
+            { name: "長時間精神科訪問看護加算", y: 5200, note: "逃1回（条件下逃3回）" },
+            { name: "夜間・早朝訪問看護加算", y: 2100, note: "18～22時/6～8時" },
+            { name: "深夜訪問看護加算", y: 4200, note: "22～6時" },
+            { name: "24時間対応体制加算 イ", y: 6800, note: "月1回" },
+            { name: "24時間対応体制加算 ロ", y: 6520, note: "月1回" },
+            { name: "特別管理加算（１）", y: 5000, note: "月1回" },
+            { name: "特別管理加算（２）", y: 2500, note: "月1回" },
             { name: "訪問看護ターミナルケア療養費1", y: 25000, note: "在宅死亡月" },
             { name: "訪問看護ターミナルケア療養費2", y: 10000, note: "特養等死亡月" },
           ].map(r => (
@@ -1843,6 +1839,42 @@ function PsychiatricFeeTable() {
               <TableCell right className="text-emerald-700">{cp(r.y).p20}</TableCell>
               <TableCell right className="text-emerald-700">{cp(r.y).p30}</TableCell>
               <TableCell>{r.note}</TableCell>
+            </tr>
+          ))}
+
+          {/* 複数名精神科訪問看護加算（建物区分別） */}
+          <tr><TableCell colSpan={6} className="bg-stone-100 text-stone-600 font-bold">複数名精神科訪問看護加算（同一建物居住者数別）</TableCell></tr>
+          <tr><TableCell colSpan={6} className="text-xs text-stone-500 italic">• 看護師等（保健師・看護師・作業療法士）の場合：1日1回/2回/3回以上で金額が異なります</TableCell></tr>
+          {[
+            { bc: "1～2人", nurse: "4,500 / 9,000 / 13,500", junkan: "3,800 / 7,600 / 11,400", helper: 3000 },
+            { bc: "10～19人", nurse: "3,400 / 6,880 / 11,050", junkan: "2,800 / 5,600 / 9,220", helper: 2100 },
+            { bc: "20～49人", nurse: "3,000 / 6,070 / 9,750", junkan: "2,500 / 5,000 / 8,230", helper: 1900 },
+            { bc: "50人以上", nurse: "2,700 / 5,460 / 8,770", junkan: "2,200 / 4,400 / 7,240", helper: 1600 },
+          ].map(r => (
+            <tr key={r.bc}>
+              <TableCell>{r.bc}</TableCell>
+              <TableCell colSpan={4} className="text-xs">
+                看護師等: {r.nurse}円（回数別）　准看護師: {r.junkan}円（回数別）　看護補助者等: {r.helper.toLocaleString()}円（週1回）
+              </TableCell>
+              <TableCell>—</TableCell>
+            </tr>
+          ))}
+
+          {/* 精神科複数回訪問加算（建物区分別） */}
+          <tr><TableCell colSpan={6} className="bg-stone-100 text-stone-600 font-bold">精神科複数回訪問加算（同一建物居住者数別）</TableCell></tr>
+          <tr><TableCell colSpan={6} className="text-xs text-stone-500 italic">• 3回以上の場合：月20日目まで（高額）/ 21日目以降（低額）で金額が異なります</TableCell></tr>
+          {[
+            { bc: "1～2人", twice: 7200, three: "7,200 / 7,200" },
+            { bc: "10～19人", twice: 3700, three: "6,300 / 5,200" },
+            { bc: "20～49人", twice: 3500, three: "4,800 / 3,500" },
+            { bc: "50人以上", twice: 3300, three: "4,100 / 3,000" },
+          ].map(r => (
+            <tr key={r.bc}>
+              <TableCell>{r.bc}</TableCell>
+              <TableCell colSpan={4} className="text-xs">
+                1日2回: {r.twice.toLocaleString()}円　　　1日3回以上: {r.three}円（20日まで/21日以降）
+              </TableCell>
+              <TableCell>厚生労働大臣が定める状態</TableCell>
             </tr>
           ))}
         </tbody>
