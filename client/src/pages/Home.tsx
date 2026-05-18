@@ -1937,6 +1937,38 @@ function PsychiatricFeeTable() {
         </tbody>
       </table>
 
+      <SectionTitle>訪問看護ベースアップ評価料（令和8年6月〜改定）</SectionTitle>
+      <p className="text-xs text-stone-500 mb-1">※ 区分番号02（訪問看護管理療養費）を算定している利用者が対象。精神科訪問看護基本療養費（区分番号01-2）算定時も区分番号02を合わせて算定するため対象。月1回定額算定。</p>
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr>
+            <TableHeader>区分</TableHeader>
+            <TableHeader>金額</TableHeader>
+            <TableHeader>1割</TableHeader>
+            <TableHeader>2割</TableHeader>
+            <TableHeader>3割</TableHeader>
+            <TableHeader>算定要件</TableHeader>
+          </tr>
+        </thead>
+        <tbody>
+          {[
+            { name: "評価料（Ⅰ）新規", yen: 1050, note: "月1回定額・新規算定事業所" },
+            { name: "評価料（Ⅰ）継続的賃上げ実施", yen: 1830, note: "月1回定額・継続的賃上げ実施事業所" },
+            { name: "評価料（Ⅱ）区分1〜18", yen: 30, note: "月1回定額・区分1=30円〜区分18=540円（新規）" },
+          ].map(r => (
+            <tr key={r.name}>
+              <TableCell className="font-medium text-amber-700">{r.name}</TableCell>
+              <TableCell right className="text-amber-700">{r.yen.toLocaleString()}円</TableCell>
+              <TableCell right className="text-emerald-700">{Math.floor(r.yen * 0.1).toLocaleString()}円</TableCell>
+              <TableCell right className="text-emerald-700">{Math.floor(r.yen * 0.2).toLocaleString()}円</TableCell>
+              <TableCell right className="text-emerald-700">{Math.floor(r.yen * 0.3).toLocaleString()}円</TableCell>
+              <TableCell>{r.note}</TableCell>
+            </tr>
+          ))}
+          <tr><TableCell className="text-stone-500 text-xs" colSpan={6}>※令和9年6月以降：評価料（Ⅰ）は新規2,100円・継続的賃上げ実施2,880円、評価料（Ⅱ）は区分1〜36に拡大予定</TableCell></tr>
+        </tbody>
+      </table>
+
       <SectionTitle>自立支援医療（精神通院）の自己負担上限額（月額）</SectionTitle>
       <table className="w-full border-collapse text-xs">
         <thead>
