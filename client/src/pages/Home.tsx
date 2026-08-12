@@ -1447,7 +1447,8 @@ function CareFeeTable(){
             { name: "特別管理加算（2）", u: 250, note: "月1回" },
             { name: "複数名訪問看護加算（Ⅰ）看護師等", u: 254, note: "1回" },
             { name: "ターミナルケア加算", u: 2500, note: "死亡月" },
-            { name: "初回加算（Ⅱ）", u: 300, note: "月1回" },
+            { name: "初回加算（Ⅰ）退院当日の初回訪問", u: 350, note: "月1回・Ⅱと併算定不可" },
+            { name: "初回加算（Ⅱ）その他の初回訪問", u: 300, note: "月1回・Ⅰと併算定不可" },
           ].map(r => (
             <tr key={r.name}>
               <TableCell>{r.name}</TableCell>

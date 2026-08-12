@@ -183,6 +183,8 @@ export interface CareCalcInput {
   specialManagement: boolean;        // 特別管理加算
   specialManagementType: "type1" | "type2"; // 500/250単位
   terminalCare: boolean;             // ターミナルケア加算 2500単位
+  initialAdd: boolean;               // 初回加算（月1回）
+  initialAddType: "type1" | "type2"; // 350/300単位
   multipleVisit: boolean;            // 複数名訪問看護加算（Ⅰ）
   multipleVisitType: "nurse" | "other"; // 看護師等/その他
   earlyLate: boolean;                // 夜間・早朝加算
@@ -384,6 +386,8 @@ const CARE_ADDITIONS = {
   specialMgmt1:       500,   // 特別管理加算（1）/月
   specialMgmt2:       250,   // 特別管理加算（2）/月
   terminalCare:      2500,   // ターミナルケア加算/月
+  initialAddI:        350,   // 初回加算（Ⅰ）/月
+  initialAddII:       300,   // 初回加算（Ⅱ）/月
   multipleVisitNurse: 254,   // 複数名訪問看護加算（Ⅰ）看護師等/回
   multipleVisitOther: 201,   // 複数名訪問看護加算（Ⅱ）その他/回
   earlyLate:          210,   // 夜間・早朝加算/回（所定単位数の25%相当）
@@ -642,6 +646,22 @@ export function calculateCare(input: CareCalcInput): CalcResult {
       amount: units,
       unit: "単位",
       note: "月1回算定",
+    });
+  }
+
+  // 初回加算（Ⅰ・Ⅱは同一月に併算定不可）
+  if (input.initialAdd) {
+    const units = input.initialAddType === "type1"
+      ? CARE_ADDITIONS.initialAddI
+      : CARE_ADDITIONS.initialAddII;
+    const typeLabel = input.initialAddType === "type1"
+      ? "（Ⅰ）退院当日の初回訪問"
+      : "（Ⅱ）その他の初回訪問";
+    items.push({
+      label: `初回加算${typeLabel}`,
+      amount: units,
+      unit: "単位",
+      note: "月1回算定・ⅠとⅡは併算定不可",
     });
   }
 
@@ -1009,6 +1029,8 @@ export const defaultCareInput: CareCalcInput = {
   specialManagement: false,
   specialManagementType: "type1",
   terminalCare: false,
+  initialAdd: false,
+  initialAddType: "type2",
   multipleVisit: false,
   multipleVisitType: "nurse",
   earlyLate: false,

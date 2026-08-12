@@ -9,6 +9,7 @@ import {
 } from "./localPersistence";
 import {
   DEFAULT_BASEUP_CONFIG,
+  calculateCare,
   defaultCareInput,
   defaultCopayInput,
   defaultInput,
@@ -69,5 +70,33 @@ describe("localPersistence", () => {
 
   it("不正なバックアップを拒否する", () => {
     expect(() => parseBackup({ format: "other", data: {} })).toThrow("バックアップ");
+  });
+
+  it("介護保険の初回加算Ⅰを月1回・350単位で計算する", () => {
+    const result = calculateCare({
+      ...defaultCareInput,
+      initialAdd: true,
+      initialAddType: "type1",
+    });
+
+    expect(result.items).toContainEqual(expect.objectContaining({
+      label: "初回加算（Ⅰ）退院当日の初回訪問",
+      amount: 350,
+      unit: "単位",
+    }));
+  });
+
+  it("介護保険の初回加算Ⅱを月1回・300単位で計算する", () => {
+    const result = calculateCare({
+      ...defaultCareInput,
+      initialAdd: true,
+      initialAddType: "type2",
+    });
+
+    expect(result.items).toContainEqual(expect.objectContaining({
+      label: "初回加算（Ⅱ）その他の初回訪問",
+      amount: 300,
+      unit: "単位",
+    }));
   });
 });

@@ -180,8 +180,8 @@ export default function PreventiveCareForm({ input, onChange }: PreventiveCareFo
               value={input.initialAddType}
               onChange={(v) => onChange({ initialAddType: v })}
               options={[
-                { value: "type1", label: "（Ⅰ）退院・施設退所後", sublabel: "350単位（新設）" },
-                { value: "type2", label: "（Ⅱ）通常",              sublabel: "300単位" },
+                { value: "type1", label: "（Ⅰ）退院当日の初回訪問", sublabel: "350単位（新設）" },
+                { value: "type2", label: "（Ⅱ）その他の初回訪問",   sublabel: "300単位" },
               ]}
             />
           </div>

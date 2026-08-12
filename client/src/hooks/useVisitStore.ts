@@ -124,6 +124,7 @@ function resetCareMonthlyOnceAdditions(input: CareCalcInput): CareCalcInput {
     emergencyVisit: false,
     specialManagement: false,
     terminalCare: false,
+    initialAdd: false,
   };
 }
 

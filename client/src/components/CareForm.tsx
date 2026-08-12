@@ -166,6 +166,26 @@ export default function CareForm({ input, onChange }: CareFormProps) {
         )}
 
         <SwitchRow
+          label="初回加算"
+          checked={input.initialAdd}
+          onChange={(v) => onChange({ initialAdd: v })}
+          tooltip="月1回算定。初回加算（Ⅰ）と（Ⅱ）は併算定できません"
+        />
+        {input.initialAdd && (
+          <div className="pl-2">
+            <RadioGroup<"type1" | "type2">
+              label="区分"
+              value={input.initialAddType}
+              onChange={(v) => onChange({ initialAddType: v })}
+              options={[
+                { value: "type1", label: "（Ⅰ）退院当日の初回訪問", sublabel: "350単位" },
+                { value: "type2", label: "（Ⅱ）その他の初回訪問", sublabel: "300単位" },
+              ]}
+            />
+          </div>
+        )}
+
+        <SwitchRow
           label="ターミナルケア加算"
           checked={input.terminalCare}
           onChange={(v) => onChange({ terminalCare: v })}
