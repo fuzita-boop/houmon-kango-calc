@@ -1104,7 +1104,7 @@ export interface PsychCalcInput {
   infoProvisionType: InfoProvisionType;
   terminalCare: boolean;
   terminalCareType: TerminalCareType;
-  bukkaTaiou: boolean;             // 訪問看護物価対応料2（精神科）
+  bukkaTaiou: boolean;             // 訪問看護物価対応料1（区分番号02を算定する精神科訪問看護）
   medicalInfoLinkage: boolean;      // 訪問看護医療情報連携加算（月1回・1,000円）
 }
 
@@ -1512,13 +1512,14 @@ export function calculatePsychiatric(input: PsychCalcInput): CalcResult {
     });
   }
 
-  // 訪問看護物価対応料2（精神科）
+  // 訪問看護物価対応料1（精神科訪問看護は区分番号02を合わせて算定）
   if (input.bukkaTaiou) {
+    const amount = input.isFirstVisitOfMonth ? 60 : 20;
     items.push({
-      label: "訪問看護物価対応料2（精神科）",
-      amount: 20,
+      label: `訪問看護物価対応料1（${input.isFirstVisitOfMonth ? "月初日60円" : "2日目以降20円"}）`,
+      amount,
       unit: "円",
-      note: "令和9年6月以降40円/日に引上げ予定",
+      note: "区分番号02算定者が対象。令和9年6月以降は月初日120円・2日目以降40円",
     });
   }
 
@@ -1855,7 +1856,7 @@ export type BukkaTaiouType = "none" | "type1" | "type2";
 
 /**
  * 訪問看護物価対応料を計算する
- * @param type 物価対応料の種別（type1=医療保険通常、type2=精神科）
+ * @param type 物価対応料の種別（type1=区分番号02、type2=区分番号04・包括型）
  * @param isFirstVisitOfMonth 月初日の訪問かどうか
  * @returns 物価対応料の金額（円）
  */

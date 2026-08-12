@@ -10,6 +10,7 @@ import {
 import {
   DEFAULT_BASEUP_CONFIG,
   calculateCare,
+  calculatePsychiatric,
   defaultCareInput,
   defaultCopayInput,
   defaultInput,
@@ -97,6 +98,34 @@ describe("localPersistence", () => {
       label: "初回加算（Ⅱ）その他の初回訪問",
       amount: 300,
       unit: "単位",
+    }));
+  });
+
+  it("精神科訪問看護の物価対応料1を月初日60円で計算する", () => {
+    const result = calculatePsychiatric({
+      ...defaultPsychInput,
+      bukkaTaiou: true,
+      isFirstVisitOfMonth: true,
+    });
+
+    expect(result.items).toContainEqual(expect.objectContaining({
+      label: "訪問看護物価対応料1（月初日60円）",
+      amount: 60,
+      unit: "円",
+    }));
+  });
+
+  it("精神科訪問看護の物価対応料1を月2日目以降20円で計算する", () => {
+    const result = calculatePsychiatric({
+      ...defaultPsychInput,
+      bukkaTaiou: true,
+      isFirstVisitOfMonth: false,
+    });
+
+    expect(result.items).toContainEqual(expect.objectContaining({
+      label: "訪問看護物価対応料1（2日目以降20円）",
+      amount: 20,
+      unit: "円",
     }));
   });
 });
