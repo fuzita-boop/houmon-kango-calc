@@ -50,7 +50,7 @@
 }
 
 :root {
-  --font-sans: 'Noto Sans JP', sans-serif;
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Yu Gothic", "Meiryo", sans-serif;
 
   /* Primary: テラコッタオレンジ（落ち着いた暖色） */
   --primary: oklch(0.62 0.13 42);           /* テラコッタ */

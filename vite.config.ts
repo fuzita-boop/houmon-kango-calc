@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, type Plugin, type ViteDevServer } from "vite";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
+import { VitePWA } from "vite-plugin-pwa";
 
 // =============================================================================
 // Manus Debug Collector - Vite Plugin
@@ -150,9 +151,40 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
+const githubPagesBuild = process.env.GITHUB_PAGES === "true";
+const basePath = process.env.VITE_BASE_PATH ?? "/";
+const pwaPlugin = VitePWA({
+  registerType: "autoUpdate",
+  injectRegister: "auto",
+  includeAssets: ["icon.svg"],
+  manifest: {
+    name: "訪問看護 料金計算",
+    short_name: "訪問看護",
+    description: "令和8年度診療報酬改定準拠の訪問看護料金計算アプリ",
+    start_url: "./",
+    scope: "./",
+    display: "standalone",
+    background_color: "#fafaf9",
+    theme_color: "#b45309",
+    lang: "ja",
+    orientation: "portrait",
+    icons: [
+      { src: "icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" },
+    ],
+  },
+  workbox: {
+    globPatterns: ["**/*.{html,js,css,json,svg,png,ico,webmanifest}"],
+    navigateFallback: "index.html",
+    cleanupOutdatedCaches: true,
+  },
+});
+
+// GitHub Pages向けビルドにはManus固有の実行時スクリプトを含めない。
+const manusDevelopmentPlugins = githubPagesBuild ? [] : [vitePluginManusRuntime(), vitePluginManusDebugCollector()];
+const plugins = [react(), tailwindcss(), jsxLocPlugin(), ...manusDevelopmentPlugins, pwaPlugin];
 
 export default defineConfig({
+  base: basePath,
   plugins,
   resolve: {
     alias: {
@@ -164,7 +196,7 @@ export default defineConfig({
   envDir: path.resolve(import.meta.dirname),
   root: path.resolve(import.meta.dirname, "client"),
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    outDir: path.resolve(import.meta.dirname, githubPagesBuild ? "dist-pages" : "dist/public"),
     emptyOutDir: true,
   },
   server: {

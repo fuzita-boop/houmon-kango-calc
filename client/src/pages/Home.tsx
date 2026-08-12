@@ -9,7 +9,7 @@
  * - 処遇改善加算（介護保険）・ベースアップ評価料（医療保険）対応
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { useVisitStore } from "@/hooks/useVisitStore";
 import type { InsuranceMode } from "@/hooks/useVisitStore";
@@ -52,6 +52,9 @@ import {
   BriefcaseMedicalIcon,
   ShieldIcon,
   BrainIcon,
+  DatabaseIcon,
+  DownloadIcon,
+  UploadIcon,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -2049,6 +2052,27 @@ export default function Home() {
   const store = useVisitStore();
   const [showPrint, setShowPrint] = useState(false);
   const [showFeeTable, setShowFeeTable] = useState(false);
+  const [showDataTools, setShowDataTools] = useState(false);
+  const [dataToolMessage, setDataToolMessage] = useState<string | null>(null);
+  const backupFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExportBackup = () => {
+    store.exportBackup();
+    setDataToolMessage("バックアップファイルをダウンロードしました。");
+  };
+
+  const handleImportBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!window.confirm("現在の端末内データをバックアップ内容で置き換えます。よろしいですか？")) return;
+    try {
+      await store.importBackup(file);
+      setDataToolMessage("バックアップを復元しました。端末内にも自動保存されます。");
+    } catch (error) {
+      setDataToolMessage(error instanceof Error ? error.message : "バックアップを復元できませんでした。");
+    }
+  };
 
   const visitDaysForCalendar = useMemo(
     () => store.currentMonthVisits.map(v => ({ date: v.date, insuranceMode: v.insuranceMode })),
@@ -2297,6 +2321,18 @@ export default function Home() {
     );
   };
 
+  if (!store.isHydrated) {
+    return (
+      <div className="min-h-screen max-w-lg mx-auto bg-stone-50 flex items-center justify-center p-6">
+        <div className="rounded-2xl border border-amber-100 bg-white p-5 text-center shadow-sm">
+          <DatabaseIcon className="w-7 h-7 mx-auto mb-3 text-amber-600" />
+          <p className="font-bold text-stone-800">端末内データを読み込んでいます</p>
+          <p className="mt-1 text-xs text-stone-500">入力内容はこの端末に保存され、外部へ送信されません。</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-stone-50 flex flex-col max-w-lg mx-auto">
       {/* ヘッダー */}
@@ -2307,6 +2343,14 @@ export default function Home() {
             <p className="text-xs text-stone-400">令和8年度改定準拠</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowDataTools((value) => !value)}
+              aria-expanded={showDataTools}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-teal-50 text-teal-700 border border-teal-200 rounded-lg text-xs font-medium hover:bg-teal-100 transition-colors"
+            >
+              <DatabaseIcon className="w-3.5 h-3.5" />
+              データ
+            </button>
             <button
               onClick={() => setShowFeeTable(true)}
               className="flex items-center gap-1 px-3 py-1.5 bg-stone-50 text-stone-600 border border-stone-200 rounded-lg text-xs font-medium hover:bg-stone-100 transition-colors"
@@ -2325,6 +2369,40 @@ export default function Home() {
             )}
           </div>
         </div>
+
+        {showDataTools && (
+          <div className="mb-2 rounded-xl border border-teal-200 bg-teal-50 p-2.5">
+            <div className="flex items-start gap-2">
+              <DatabaseIcon className="mt-0.5 h-4 w-4 shrink-0 text-teal-700" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-teal-900">保存先：この端末のIndexedDB</p>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-teal-800">入力内容は自動保存され、サーバーへ送信されません。機種変更・ブラウザ初期化の前にはバックアップを保存してください。</p>
+              </div>
+            </div>
+            <div className="mt-2 flex gap-2">
+              <button
+                onClick={handleExportBackup}
+                className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-teal-300 bg-white px-2 py-1.5 text-xs font-medium text-teal-800 transition-colors hover:bg-teal-100"
+              >
+                <DownloadIcon className="h-3.5 w-3.5" />
+                バックアップ
+              </button>
+              <button
+                onClick={() => backupFileInputRef.current?.click()}
+                className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-teal-300 bg-white px-2 py-1.5 text-xs font-medium text-teal-800 transition-colors hover:bg-teal-100"
+              >
+                <UploadIcon className="h-3.5 w-3.5" />
+                復元
+              </button>
+              <input ref={backupFileInputRef} type="file" accept="application/json,.json" className="hidden" onChange={handleImportBackup} />
+            </div>
+            {(dataToolMessage || store.persistenceError) && (
+              <p className={cn("mt-2 text-[11px]", store.persistenceError ? "text-red-700" : "text-teal-800")} role="status">
+                {store.persistenceError ?? dataToolMessage}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* ステップインジケーター */}
         <StepIndicator

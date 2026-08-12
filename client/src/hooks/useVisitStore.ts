@@ -12,7 +12,7 @@
  * - 2回目以降の訪問日追加時、直前の訪問日の算定条件を自動コピー
  * - 月1回加算は2回目以降は自動的にOFFにする
  */
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type {
   CalcInput,
   CareCalcInput,
@@ -45,6 +45,14 @@ import {
   CARE_REGION_RATES,
 } from "@/lib/calcEngine";
 import { nanoid } from "nanoid";
+import {
+  downloadBackup,
+  loadPersistedAppData,
+  readBackupFile,
+  readLegacyLocalStorageData,
+  savePersistedAppData,
+} from "@/lib/localPersistence";
+import type { PersistedAppData, PersistedVisitDay } from "@/lib/localPersistence";
 
 export type InsuranceMode = "medical" | "care" | "preventive" | "psychiatric";
 
@@ -92,6 +100,8 @@ export interface MonthlySummaryResult {
   monthlyBaseupYen: number;    // ベースアップ評価料の月額（円）
   hasBaseup: boolean;          // ベースアップ評価料を適用するか
 }
+
+type PersistedVisitState = Omit<PersistedAppData, "savedAt" | "schemaVersion">;
 
 // ============================================================
 // 月1回加算のリセット
@@ -326,6 +336,61 @@ function calcVisitDayResult(day: VisitDay): VisitDayResult {
 }
 
 // ============================================================
+// 端末内保存データの復元・正規化
+// ============================================================
+
+function isInsuranceMode(value: unknown): value is InsuranceMode {
+  return value === "medical" || value === "care" || value === "preventive" || value === "psychiatric";
+}
+
+function normalizePersistedVisitDay(value: PersistedVisitDay): VisitDay {
+  const mode = isInsuranceMode(value.insuranceMode) ? value.insuranceMode : "medical";
+  const fallback = createDefaultVisitDay(typeof value.date === "string" ? value.date : "", mode);
+  return {
+    ...fallback,
+    ...value,
+    id: typeof value.id === "string" ? value.id : fallback.id,
+    date: typeof value.date === "string" ? value.date : fallback.date,
+    insuranceMode: mode,
+    medicalInput: { ...defaultInput, ...value.medicalInput },
+    careInput: { ...defaultCareInput, ...value.careInput },
+    preventiveCareInput: { ...defaultPreventiveCareInput, ...value.preventiveCareInput },
+    psychInput: { ...defaultPsychInput, ...value.psychInput },
+    copayInput: { ...defaultCopayInput, ...value.copayInput },
+    seishinCopayTracker: { ...defaultSeishinCopayTracker, ...value.seishinCopayTracker },
+    medicalBaseupConfig: { ...DEFAULT_BASEUP_CONFIG, ...value.medicalBaseupConfig },
+    bukkaTaiouType: value.bukkaTaiouType ?? "type1",
+    applyShoguKaizen: Boolean(value.applyShoguKaizen),
+  };
+}
+
+function normalizePersistedState(data: PersistedAppData): PersistedVisitState {
+  const now = new Date();
+  const visitDays = Array.isArray(data.visitDays)
+    ? data.visitDays.filter((day): day is PersistedVisitDay => Boolean(day && typeof day === "object")).map(normalizePersistedVisitDay)
+    : [];
+  const homeStep = data.homeStep === 2 || data.homeStep === 3 || data.homeStep === 4 ? data.homeStep : 1;
+  return {
+    year: Number.isInteger(data.year) ? data.year : now.getFullYear(),
+    month: Number.isInteger(data.month) && data.month >= 1 && data.month <= 12 ? data.month : now.getMonth() + 1,
+    globalInsuranceMode: isInsuranceMode(data.globalInsuranceMode) ? data.globalInsuranceMode : "medical",
+    visitDays,
+    selectedDate: typeof data.selectedDate === "string" ? data.selectedDate : null,
+    patientName: typeof data.patientName === "string" ? data.patientName : "",
+    stationName: typeof data.stationName === "string" ? data.stationName : "",
+    globalMedicalInput: { ...defaultInput, ...data.globalMedicalInput },
+    globalCareInput: { ...defaultCareInput, ...data.globalCareInput },
+    globalPreventiveCareInput: { ...defaultPreventiveCareInput, ...data.globalPreventiveCareInput },
+    globalPsychInput: { ...defaultPsychInput, ...data.globalPsychInput },
+    globalCopayInput: { ...defaultCopayInput, ...data.globalCopayInput },
+    globalBukkaTaiouType: data.globalBukkaTaiouType ?? "type1",
+    globalBaseupConfig: { ...DEFAULT_BASEUP_CONFIG, ...data.globalBaseupConfig },
+    globalApplyShoguKaizen: Boolean(data.globalApplyShoguKaizen),
+    homeStep,
+  };
+}
+
+// ============================================================
 // メインフック
 // ============================================================
 
@@ -351,6 +416,85 @@ export function useVisitStore() {
 
   // ホーム画面のステップ（種別選択→算定条件→負担割合→カレンダー）
   const [homeStep, setHomeStep] = useState<1 | 2 | 3 | 4>(1);
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [persistenceError, setPersistenceError] = useState<string | null>(null);
+
+  const applyPersistedState = useCallback((data: PersistedAppData) => {
+    const restored = normalizePersistedState(data);
+    setYear(restored.year);
+    setMonth(restored.month);
+    setGlobalInsuranceMode(restored.globalInsuranceMode);
+    setVisitDays(restored.visitDays);
+    setSelectedDate(restored.selectedDate);
+    setPatientName(restored.patientName);
+    setStationName(restored.stationName);
+    setGlobalMedicalInput(restored.globalMedicalInput);
+    setGlobalCareInput(restored.globalCareInput);
+    setGlobalPreventiveCareInput(restored.globalPreventiveCareInput);
+    setGlobalPsychInput(restored.globalPsychInput);
+    setGlobalCopayInput(restored.globalCopayInput);
+    setGlobalBukkaTaiouType(restored.globalBukkaTaiouType);
+    setGlobalBaseupConfig(restored.globalBaseupConfig);
+    setGlobalApplyShoguKaizen(restored.globalApplyShoguKaizen);
+    setHomeStep(restored.homeStep);
+  }, []);
+
+  // 最初の1回だけ端末内データを復元。旧試作版のlocalStorageデータも見つかれば移行する。
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const saved = await loadPersistedAppData();
+        const legacy = saved ? null : readLegacyLocalStorageData();
+        if (!cancelled && (saved ?? legacy)) {
+          applyPersistedState(saved ?? legacy!);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setPersistenceError(error instanceof Error ? error.message : "端末内データを読み込めませんでした。");
+        }
+      } finally {
+        if (!cancelled) setIsHydrated(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [applyPersistedState]);
+
+  // 復元後のすべての変更をIndexedDBへ保存。計算データはネットワークへ送信しない。
+  useEffect(() => {
+    if (!isHydrated) return;
+    const data: PersistedAppData = {
+      schemaVersion: 1,
+      savedAt: new Date().toISOString(),
+      year,
+      month,
+      globalInsuranceMode,
+      visitDays,
+      selectedDate,
+      patientName,
+      stationName,
+      globalMedicalInput,
+      globalCareInput,
+      globalPreventiveCareInput,
+      globalPsychInput,
+      globalCopayInput,
+      globalBukkaTaiouType,
+      globalBaseupConfig,
+      globalApplyShoguKaizen,
+      homeStep,
+    };
+    const timeout = window.setTimeout(() => {
+      savePersistedAppData(data).then(
+        () => setPersistenceError(null),
+        (error: unknown) => setPersistenceError(error instanceof Error ? error.message : "端末内データを保存できませんでした。")
+      );
+    }, 200);
+    return () => window.clearTimeout(timeout);
+  }, [
+    isHydrated, year, month, globalInsuranceMode, visitDays, selectedDate, patientName, stationName,
+    globalMedicalInput, globalCareInput, globalPreventiveCareInput, globalPsychInput, globalCopayInput,
+    globalBukkaTaiouType, globalBaseupConfig, globalApplyShoguKaizen, homeStep,
+  ]);
 
   const getVisitDay = useCallback(
     (date: string) => visitDays.find((d) => d.date === date) ?? null,
@@ -526,6 +670,40 @@ export function useVisitStore() {
     setGlobalApplyShoguKaizen(false);
   }, []);
 
+  const exportBackup = useCallback(() => {
+    const data: PersistedAppData = {
+      schemaVersion: 1,
+      savedAt: new Date().toISOString(),
+      year,
+      month,
+      globalInsuranceMode,
+      visitDays,
+      selectedDate,
+      patientName,
+      stationName,
+      globalMedicalInput,
+      globalCareInput,
+      globalPreventiveCareInput,
+      globalPsychInput,
+      globalCopayInput,
+      globalBukkaTaiouType,
+      globalBaseupConfig,
+      globalApplyShoguKaizen,
+      homeStep,
+    };
+    downloadBackup(data);
+  }, [
+    year, month, globalInsuranceMode, visitDays, selectedDate, patientName, stationName,
+    globalMedicalInput, globalCareInput, globalPreventiveCareInput, globalPsychInput, globalCopayInput,
+    globalBukkaTaiouType, globalBaseupConfig, globalApplyShoguKaizen, homeStep,
+  ]);
+
+  const importBackup = useCallback(async (file: File) => {
+    const imported = await readBackupFile(file);
+    applyPersistedState(imported);
+    setPersistenceError(null);
+  }, [applyPersistedState]);
+
   return {
     year, month,
     globalInsuranceMode, setGlobalInsuranceMode,
@@ -553,7 +731,8 @@ export function useVisitStore() {
     selectedDate, setSelectedDate,
     patientName, setPatientName,
     stationName, setStationName,
+    isHydrated, persistenceError,
     getVisitDay, toggleVisitDay, updateVisitDay, copyPrevConditions, updateCopayForAll,
-    prevMonth, nextMonth, clearAll,
+    prevMonth, nextMonth, clearAll, exportBackup, importBackup,
   };
 }

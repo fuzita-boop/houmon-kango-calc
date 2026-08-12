@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title>訪問看護料金計算</title>
+  <rect width="512" height="512" rx="112" fill="#b45309"/>
+  <path d="M256 100c-26 0-47 21-47 47v62h-62c-26 0-47 21-47 47s21 47 47 47h62v62c0 26 21 47 47 47s47-21 47-47v-62h62c26 0 47-21 47-47s-21-47-47-47h-62v-62c0-26-21-47-47-47Z" fill="#fffaf0"/>
+  <circle cx="400" cy="400" r="44" fill="#0f766e"/>
+  <path d="M380 400l14 14 28-32" fill="none" stroke="#fffaf0" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

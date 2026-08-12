@@ -4,6 +4,7 @@
 
 # Build outputs
 dist/
+dist-pages/
 build/
 *.dist
 
@@ -107,3 +108,4 @@ temp/
 
 # Webdev artifacts (checkpoint zips, migrations, etc.)
 .webdev/
+.project-config.json
