@@ -552,6 +552,11 @@ export function useVisitStore() {
     [globalInsuranceMode, globalMedicalInput, globalCareInput, globalPreventiveCareInput, globalPsychInput, globalCopayInput, globalBukkaTaiouType, globalBaseupConfig, globalApplyShoguKaizen]
   );
 
+  const removeVisitDay = useCallback((date: string) => {
+    setVisitDays((prev) => prev.filter((d) => d.date !== date));
+    setSelectedDate((current) => current === date ? null : current);
+  }, []);
+
   const updateVisitDay = useCallback((date: string, updates: Partial<VisitDay>) => {
     setVisitDays((prev) =>
       prev.map((d) => (d.date === date ? { ...d, ...updates, wasAutoCopied: false } : d))
@@ -733,7 +738,7 @@ export function useVisitStore() {
     patientName, setPatientName,
     stationName, setStationName,
     isHydrated, persistenceError,
-    getVisitDay, toggleVisitDay, updateVisitDay, copyPrevConditions, updateCopayForAll,
+    getVisitDay, toggleVisitDay, removeVisitDay, updateVisitDay, copyPrevConditions, updateCopayForAll,
     prevMonth, nextMonth, clearAll, exportBackup, importBackup,
   };
 }

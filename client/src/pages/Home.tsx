@@ -119,12 +119,22 @@ interface CalendarProps {
   selectedDate: string | null;
   onToggle: (date: string) => void;
   onSelect: (date: string) => void;
+  onDelete: (date: string) => void;
 }
 
-function Calendar({ year, month, visitDays, selectedDate, onToggle, onSelect }: CalendarProps) {
+function Calendar({ year, month, visitDays, selectedDate, onToggle, onSelect, onDelete }: CalendarProps) {
   const firstDay = new Date(year, month - 1, 1).getDay();
   const daysInMonth = new Date(year, month, 0).getDate();
   const today = new Date().toISOString().split("T")[0];
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressHandledRef = useRef(false);
+
+  const clearLongPress = () => {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
 
   // 訪問日をdateでインデックス化（何回目か）
   const sortedVisits = [...visitDays].sort((a, b) => a.date.localeCompare(b.date));
@@ -168,58 +178,87 @@ function Calendar({ year, month, visitDays, selectedDate, onToggle, onSelect }: 
               const visitMode = visitModeMap.get(dateStr);
               const modeConf = visitMode ? MODE_CONFIG[visitMode] : null;
 
+              const requestDelete = () => {
+                if (window.confirm(`${dateStr}の訪問を削除します。よろしいですか？`)) {
+                  onDelete(dateStr);
+                }
+              };
+
               return (
-                <button
-                  key={di}
-                  type="button"
-                  onClick={() => {
-                    if (isVisit) {
-                      // 訪問済み日タップ→編集パネルを開く
-                      onSelect(dateStr);
-                    } else {
-                      // 未訪問日タップ→即追加（確認画面なし）
-                      onToggle(dateStr);
-                    }
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    if (isVisit) onToggle(dateStr);
-                  }}
-                  className={cn(
-                    "relative aspect-square flex flex-col items-center justify-center rounded-lg text-sm font-medium transition-all duration-150 select-none",
-                    isSelected && isVisit
-                      ? "bg-amber-600 text-white shadow-md ring-2 ring-amber-400 ring-offset-1"
-                      : isVisit && modeConf
-                      ? `${modeConf.color} text-white shadow-sm`
-                      : isToday
-                      ? "border-2 border-amber-400 text-amber-700 hover:bg-amber-50"
-                      : "hover:bg-stone-100 text-stone-700",
-                    dayOfWeek === 0 && !isVisit && !isSelected && "text-red-500",
-                    dayOfWeek === 6 && !isVisit && !isSelected && "text-blue-500",
-                  )}
-                >
-                  <span className="text-xs leading-none">{day}</span>
-                  {isVisit && visitIndex !== undefined && (
-                    <span className="text-[9px] font-bold leading-none mt-0.5 opacity-90">
-                      {visitCountLabels[visitIndex - 1] ?? `${visitIndex}`}
-                    </span>
-                  )}
-                  {/* 訪問済み日に鱛筆アイコン */}
+                <div key={di} className="relative aspect-square">
+                  <button
+                    type="button"
+                    aria-label={isVisit ? `${dateStr}の訪問を編集` : `${dateStr}に訪問を追加`}
+                    onClick={() => {
+                      if (longPressHandledRef.current) {
+                        longPressHandledRef.current = false;
+                        return;
+                      }
+                      if (isVisit) {
+                        onSelect(dateStr);
+                      } else {
+                        onToggle(dateStr);
+                      }
+                    }}
+                    onPointerDown={() => {
+                      if (!isVisit) return;
+                      longPressHandledRef.current = false;
+                      clearLongPress();
+                      longPressTimerRef.current = window.setTimeout(() => {
+                        longPressHandledRef.current = true;
+                        requestDelete();
+                      }, 650);
+                    }}
+                    onPointerUp={clearLongPress}
+                    onPointerLeave={clearLongPress}
+                    onPointerCancel={clearLongPress}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      if (isVisit) requestDelete();
+                    }}
+                    className={cn(
+                      "absolute inset-0 flex flex-col items-center justify-center rounded-lg text-sm font-medium transition-all duration-150 select-none",
+                      isSelected && isVisit
+                        ? "bg-amber-600 text-white shadow-md ring-2 ring-amber-400 ring-offset-1"
+                        : isVisit && modeConf
+                        ? `${modeConf.color} text-white shadow-sm`
+                        : isToday
+                        ? "border-2 border-amber-400 text-amber-700 hover:bg-amber-50"
+                        : "hover:bg-stone-100 text-stone-700",
+                      dayOfWeek === 0 && !isVisit && !isSelected && "text-red-500",
+                      dayOfWeek === 6 && !isVisit && !isSelected && "text-blue-500",
+                    )}
+                  >
+                    <span className="text-xs leading-none">{day}</span>
+                    {isVisit && visitIndex !== undefined && (
+                      <span className="text-[9px] font-bold leading-none mt-0.5 opacity-90">
+                        {visitCountLabels[visitIndex - 1] ?? `${visitIndex}`}
+                      </span>
+                    )}
+                  </button>
                   {isVisit && (
-                    <span className="absolute top-0.5 right-0.5 opacity-70">
-                      <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor">
+                    <button
+                      type="button"
+                      aria-label={`${dateStr}の訪問を編集`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelect(dateStr);
+                      }}
+                      className="absolute top-0.5 right-0.5 z-10 rounded p-1 text-white/90 hover:bg-black/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                         <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
                       </svg>
-                    </span>
+                    </button>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>
         ))}
       </div>
       <div className="mt-2 text-xs text-stone-400 text-center">
-        タップで追加 / 訪問済みはタップで編集 / 長押しで削除
+        タップで追加 / 訪問済みは鉛筆で編集 / 編集画面または長押しで削除
       </div>
     </div>
   );
@@ -336,6 +375,18 @@ function VisitDetailPanel({ dateStr, store, onClose, visitIndex }: VisitDetailPa
           <div className="font-bold text-base">{dateLabel}（{dow}）</div>
           <div className="text-xs text-white/70">{visitLabel} · {modeConf.label}</div>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm(`${dateLabel}の訪問を削除します。よろしいですか？`)) {
+              store.removeVisitDay(dateStr);
+              onClose();
+            }
+          }}
+          className="rounded-lg border border-white/40 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-white/15 transition-colors"
+        >
+          削除
+        </button>
         <div className="text-right">
           <div className="text-xs text-white/70">合計</div>
           <div className="font-bold text-lg">{formatYen(totalYen)}</div>
@@ -2302,6 +2353,7 @@ export default function Home() {
             selectedDate={store.selectedDate}
             onToggle={store.toggleVisitDay}
             onSelect={store.setSelectedDate}
+            onDelete={store.removeVisitDay}
           />
         </div>
 
