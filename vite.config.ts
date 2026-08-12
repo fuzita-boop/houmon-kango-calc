@@ -159,7 +159,7 @@ const pwaPlugin = VitePWA({
   includeAssets: ["icon.svg"],
   manifest: {
     name: "訪問看護 料金計算",
-    short_name: "訪問看護",
+    short_name: "訪看料金",
     description: "令和8年度診療報酬改定準拠の訪問看護料金計算アプリ",
     start_url: "./",
     scope: "./",
