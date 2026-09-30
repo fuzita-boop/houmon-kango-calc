@@ -11,6 +11,7 @@ import {
   DEFAULT_BASEUP_CONFIG,
   calculateCare,
   calculatePsychiatric,
+  calcCopay,
   defaultCareInput,
   defaultCopayInput,
   defaultInput,
@@ -130,7 +131,7 @@ describe("localPersistence", () => {
     }));
   });
 
-  it("実明細と同じ精神科月初日の条件では物価対応料を重複せず21,620円になる", () => {
+  it("実明細と同じ精神科月初日の条件では物価対応料を重複せず、窓口負担を10円単位で計算する", () => {
     const result = calcVisitDayResult({
       ...sampleData.visitDays[0],
       date: "2026-09-29",
@@ -161,10 +162,20 @@ describe("localPersistence", () => {
     });
 
     expect(result.totalYen).toBe(21620);
-    expect(result.copayAmount).toBe(2162);
+    expect(result.copayAmount).toBe(2160);
     expect(result.bukkaRyo).toBe(60);
     expect(result.breakdown.filter((item) => item.label.includes("物価対応料"))).toEqual([
       expect.objectContaining({ yen: 60 }),
     ]);
+  });
+
+  it("医療保険・自立支援医療の自己負担は10円未満を四捨五入する", () => {
+    expect(calcCopay(21640, { ...defaultCopayInput, copayRatio: "1" }).amount).toBe(2160);
+    expect(calcCopay(21650, { ...defaultCopayInput, copayRatio: "1" }).amount).toBe(2170);
+    expect(calcCopay(21620, {
+      ...defaultCopayInput,
+      kohiType: "seishin",
+      kohiIncomeClass: "jyoshotoku",
+    }).amount).toBe(2160);
   });
 });

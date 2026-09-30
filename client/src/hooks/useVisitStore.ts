@@ -39,6 +39,7 @@ import {
   calcSeishinCopayWithTracker,
   calcShoguKaizenKasan,
   calcBaseupFee,
+  roundMedicalCopay,
   DEFAULT_BASEUP_CONFIG,
   MEDICAL_BASEUP_FEE,
   CARE_REGION_RATES,
@@ -647,7 +648,7 @@ export function useVisitStore() {
   const medicalCopayRatio = firstMedicalResult
     ? (firstMedicalResult.copayInput.copayRatio === "1" ? 0.1 : firstMedicalResult.copayInput.copayRatio === "2" ? 0.2 : 0.3)
     : 0.3;
-  const baseupCopay = Math.floor(monthlyBaseupYen * medicalCopayRatio);
+  const baseupCopay = roundMedicalCopay(monthlyBaseupYen * medicalCopayRatio);
 
   const totalAmount = monthlyResults.reduce((sum, r) => sum + r.totalYen, 0) + monthlyShoguKaizen.yen + monthlyBaseupYen;
   const totalCopay = monthlyResults.reduce((sum, r) => sum + r.copayAmount, 0) + shoguKaizenCopay + baseupCopay;

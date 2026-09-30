@@ -23,6 +23,7 @@ import {
   formatYen,
   CARE_REGION_OPTIONS,
   calcShoguKaizenKasan,
+  roundMedicalCopay,
 } from "@/lib/calcEngine";
 import MedicalForm from "@/components/MedicalForm";
 import CareForm from "@/components/CareForm";
@@ -601,7 +602,7 @@ function VisitDetailPanel({ dateStr, store, onClose, visitIndex }: VisitDetailPa
                 onChange={(updates) => store.updateVisitDay(dateStr, {
                   seishinCopayTracker: { ...visitDay.seishinCopayTracker, ...updates }
                 })}
-                baseAmount={Math.round(totalYen * 0.1)}
+                baseAmount={roundMedicalCopay(totalYen * 0.1)}
               />
             )}
           </div>
@@ -2014,9 +2015,9 @@ function PsychiatricFeeTable() {
             <tr key={r.name}>
               <TableCell className="font-medium text-amber-700">{r.name}</TableCell>
               <TableCell right className="text-amber-700">{r.yen.toLocaleString()}円</TableCell>
-              <TableCell right className="text-emerald-700">{Math.floor(r.yen * 0.1).toLocaleString()}円</TableCell>
-              <TableCell right className="text-emerald-700">{Math.floor(r.yen * 0.2).toLocaleString()}円</TableCell>
-              <TableCell right className="text-emerald-700">{Math.floor(r.yen * 0.3).toLocaleString()}円</TableCell>
+              <TableCell right className="text-emerald-700">{roundMedicalCopay(r.yen * 0.1).toLocaleString()}円</TableCell>
+              <TableCell right className="text-emerald-700">{roundMedicalCopay(r.yen * 0.2).toLocaleString()}円</TableCell>
+              <TableCell right className="text-emerald-700">{roundMedicalCopay(r.yen * 0.3).toLocaleString()}円</TableCell>
               <TableCell>{r.note}</TableCell>
             </tr>
           ))}

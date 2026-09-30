@@ -535,6 +535,15 @@ export function getDisabledFields(input: CalcInput): Set<keyof CalcInput> {
 // 患者自己負担額計算
 // ============================================================
 
+/**
+ * 医療保険の窓口一部負担金は10円未満を四捨五入する。
+ * 1〜4円は切り捨て、5〜9円は10円へ切り上げる。
+ * 自立支援医療（精神通院）の窓口徴収額にも同じ端数処理を適用する。
+ */
+export function roundMedicalCopay(amount: number): number {
+  return Math.floor((amount + 5) / 10) * 10;
+}
+
 export function calcCopay(
   totalAmount: number,
   copayInput: PatientCopayInput
@@ -558,10 +567,10 @@ export function calcCopay(
 
   if (kohiType === "seishin") {
     // 自立支援医療（精神通院）：原則1割
-    const baseAmount = Math.floor(totalAmount * 0.1);
+    const baseAmount = roundMedicalCopay(totalAmount * 0.1);
     // 一定所得以上（上限なし）の場合は1割負担のみ
     if (kohiIncomeClass === "jyoshotoku") {
-      return { amount: baseAmount, note: "自立支援医療（精神通院）1割負担（上限なし・一定所得以上）" };
+      return { amount: baseAmount, note: "自立支援医療（精神通院）1割負担・10円未満四捨五入（上限なし・一定所得以上）" };
     }
     const limit = SEISHIN_COPAY_LIMIT_JYUDO[kohiIncomeClass];
     if (limit === null || limit === undefined) {
@@ -570,18 +579,18 @@ export function calcCopay(
     const amount = Math.min(baseAmount, limit);
     return {
       amount,
-      note: `自立支援医療（精神通院）1割負担・月額上限${limit.toLocaleString()}円（重度かつ継続）`,
+      note: `自立支援医療（精神通院）1割負担・10円未満四捨五入・月額上限${limit.toLocaleString()}円（重度かつ継続）`,
     };
   }
 
   if (kohiType === "nanbyou") {
     // 指定難病：原則2割・月額上限あり
-    const baseAmount = Math.floor(totalAmount * 0.2);
+    const baseAmount = roundMedicalCopay(totalAmount * 0.2);
     const limit = NANBYOU_COPAY_LIMIT[kohiIncomeClass];
     const amount = Math.min(baseAmount, limit);
     return {
       amount,
-      note: `指定難病医療費助成 2割負担・月額上限${limit.toLocaleString()}円`,
+      note: `指定難病医療費助成 2割負担・10円未満四捨五入・月額上限${limit.toLocaleString()}円`,
     };
   }
 
@@ -591,9 +600,9 @@ export function calcCopay(
 
   // 通常の医療保険
   const ratio = parseInt(copayRatio) / 10;
-  const amount = Math.floor(totalAmount * ratio);
+  const amount = roundMedicalCopay(totalAmount * ratio);
   const label = copayRatio === "1" ? "後期高齢者1割" : copayRatio === "2" ? "後期高齢者2割" : "3割";
-  return { amount, note: `${label}負担` };
+  return { amount, note: `${label}負担・10円未満四捨五入` };
 }
 
 // ============================================================
