@@ -644,8 +644,8 @@ export function useVisitStore() {
     monthlyResults.some(r => r.insuranceMode === "medical" || r.insuranceMode === "psychiatric");
   const monthlyBaseupYen = hasBaseup ? calcBaseupFee(globalBaseupConfig) : 0;
 
-  // 医療保険・精神科は、同一月・同一ステーションの請求総額に負担割合を掛けてから
-  // 10円未満を四捨五入する。訪問日ごとの自己負担額を合算しない。
+  // 通常の医療保険・精神科訪問看護は、同一月・同一ステーションの請求総額に
+  // 負担割合を掛けてから10円未満を四捨五入する。訪問日ごとの自己負担額を合算しない。
   const medicalMonthlyResults = monthlyResults.filter(
     r => r.insuranceMode === "medical" || r.insuranceMode === "psychiatric"
   );
@@ -666,6 +666,8 @@ export function useVisitStore() {
   const baseupCopay = Math.max(0, medicalMonthlyBaseCopay - medicalVisitsCopay);
 
   const totalAmount = monthlyResults.reduce((sum, r) => sum + r.totalYen, 0) + monthlyShoguKaizen.yen + monthlyBaseupYen;
+  // 介護保険・介護予防は calcCopay 内で円単位切り捨て済みの金額を合算する。
+  // 10円未満四捨五入は適用しない。
   const careCopayTotal = monthlyResults
     .filter(r => r.insuranceMode === "care" || r.insuranceMode === "preventive")
     .reduce((sum, r) => sum + r.copayAmount, 0);

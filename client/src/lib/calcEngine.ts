@@ -539,6 +539,7 @@ export function getDisabledFields(input: CalcInput): Set<keyof CalcInput> {
  * 医療保険の窓口一部負担金は10円未満を四捨五入する。
  * 1〜4円は切り捨て、5〜9円は10円へ切り上げる。
  * 自立支援医療（精神通院）の窓口徴収額にも同じ端数処理を適用する。
+ * 介護保険・介護予防の自己負担には使用しない。
  */
 export function roundMedicalCopay(amount: number): number {
   return Math.floor((amount + 5) / 10) * 10;
@@ -551,7 +552,7 @@ export function calcCopay(
   const { insuranceType, copayRatio, kohiType, kohiIncomeClass, careCopayRatio } = copayInput;
 
   if (insuranceType === "care") {
-    // 介護保険の自己負担
+    // 介護保険・介護予防の自己負担：円単位で切り捨て（10円未満四捨五入はしない）
     const ratio = parseInt(careCopayRatio) / 10;
     const amount = Math.floor(totalAmount * ratio);
     return {

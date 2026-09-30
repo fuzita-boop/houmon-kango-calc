@@ -169,7 +169,7 @@ describe("localPersistence", () => {
     ]);
   });
 
-  it("医療保険・自立支援医療の自己負担は10円未満を四捨五入する", () => {
+  it("通常の医療保険・自立支援医療は10円未満を四捨五入し、介護保険は円単位で切り捨てる", () => {
     expect(calcCopay(21640, { ...defaultCopayInput, copayRatio: "1" }).amount).toBe(2160);
     expect(calcCopay(21650, { ...defaultCopayInput, copayRatio: "1" }).amount).toBe(2170);
     expect(calcCopay(21620, {
@@ -177,6 +177,11 @@ describe("localPersistence", () => {
       kohiType: "seishin",
       kohiIncomeClass: "jyoshotoku",
     }).amount).toBe(2160);
+    expect(calcCopay(12345, {
+      ...defaultCopayInput,
+      insuranceType: "care",
+      careCopayRatio: "1",
+    }).amount).toBe(1234);
   });
 
   it("月3回の精神科訪問は月の請求総額38,780円に対して1回だけ端数処理する", () => {
@@ -185,6 +190,19 @@ describe("localPersistence", () => {
       ...defaultCopayInput,
       kohiType: "seishin",
       kohiIncomeClass: "jyoshotoku",
+    });
+
+    expect(monthlyTotal).toBe(38780);
+    expect(copay.amount).toBe(3880);
+  });
+
+  it("月3回の通常の医療保険も月の請求総額に対して1回だけ端数処理する", () => {
+    const monthlyTotal = 21620 + 8580 + 8580;
+    const copay = calcCopay(monthlyTotal, {
+      ...defaultCopayInput,
+      insuranceType: "medical",
+      copayRatio: "1",
+      kohiType: "none",
     });
 
     expect(monthlyTotal).toBe(38780);
