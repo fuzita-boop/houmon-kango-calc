@@ -38,7 +38,6 @@ import {
   calcCopay,
   calcSeishinCopayWithTracker,
   calcShoguKaizenKasan,
-  calcBukkaTaiouRyo,
   calcBaseupFee,
   DEFAULT_BASEUP_CONFIG,
   MEDICAL_BASEUP_FEE,
@@ -262,7 +261,14 @@ function createAutoCopiedVisitDay(
 // 計算結果
 // ============================================================
 
-function calcVisitDayResult(day: VisitDay): VisitDayResult {
+/** 計算エンジンの内訳に含まれる物価対応料だけを集計する。 */
+function getBukkaTaiouRyoFromItems(items: { label: string; amount: number }[]): number {
+  return items
+    .filter((item) => item.label.startsWith("訪問看護物価対応料"))
+    .reduce((sum, item) => sum + item.amount, 0);
+}
+
+export function calcVisitDayResult(day: VisitDay): VisitDayResult {
   let total = 0;
   let totalYen = 0;
   let copayAmount = 0;
@@ -278,11 +284,11 @@ function calcVisitDayResult(day: VisitDay): VisitDayResult {
     result.items.forEach(item => {
       if (!item.disabled) breakdown.push({ label: item.label, yen: item.amount });
     });
-    // 物価対応料（type1）
-    bukkaRyo = calcBukkaTaiouRyo(day.bukkaTaiouType, day.medicalInput.isFirstVisitOfMonth);
-    if (bukkaRyo > 0) breakdown.push({ label: "診療報酬物価対応料", yen: bukkaRyo });
+    // 物価対応料は medicalInput.bukkaTaiou を唯一の入力値とする。
+    // 旧 bukkaTaiouType を再加算しないことで、日次・月次・明細の合計を一致させる。
+    bukkaRyo = getBukkaTaiouRyoFromItems(result.items);
     // ベースアップ評価料は月次集計で月に1回算定するため、日次計算からは除外
-    totalYen = result.total + bukkaRyo;
+    totalYen = result.total;
     const copay = calcCopay(totalYen, day.copayInput);
     copayAmount = copay.amount;
   } else if (day.insuranceMode === "care") {
@@ -318,11 +324,11 @@ function calcVisitDayResult(day: VisitDay): VisitDayResult {
     result.items.forEach(item => {
       if (!item.disabled) breakdown.push({ label: item.label, yen: item.amount });
     });
-    // 物価対応料（type2）
-    bukkaRyo = calcBukkaTaiouRyo(day.bukkaTaiouType, day.psychInput.isFirstVisitOfMonth);
-    if (bukkaRyo > 0) breakdown.push({ label: "診療報酬物価対応料", yen: bukkaRyo });
+    // 物価対応料は psychInput.bukkaTaiou を唯一の入力値とする。
+    // 旧 bukkaTaiouType を再加算しないことで、精神科の月初日60円が重複しない。
+    bukkaRyo = getBukkaTaiouRyoFromItems(result.items);
     // ベースアップ評価料は月次集計で月に1回算定するため、日次計算からは除外
-    totalYen = result.total + bukkaRyo;
+    totalYen = result.total;
     // 自立支援医療の月額上限管理
     const baseCopay = calcCopay(totalYen, day.copayInput);
     if (day.copayInput.kohiType === "seishin") {

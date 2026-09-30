@@ -19,6 +19,7 @@ import {
   defaultSeishinCopayTracker,
 } from "./calcEngine";
 import type { PersistedAppData } from "./localPersistence";
+import { calcVisitDayResult } from "@/hooks/useVisitStore";
 
 const sampleData: PersistedAppData = {
   schemaVersion: 1,
@@ -127,5 +128,43 @@ describe("localPersistence", () => {
       amount: 20,
       unit: "円",
     }));
+  });
+
+  it("実明細と同じ精神科月初日の条件では物価対応料を重複せず21,620円になる", () => {
+    const result = calcVisitDayResult({
+      ...sampleData.visitDays[0],
+      date: "2026-09-29",
+      psychInput: {
+        ...defaultPsychInput,
+        basicFeeType: "type1",
+        visitDuration: "over30",
+        weeklyVisitDay: "1-3",
+        isFirstVisitOfMonth: true,
+        managementFeeType: "standard",
+        h24Support: true,
+        h24SupportType: "ika",
+        infoProvision: true,
+        infoProvisionType: "type1",
+        bukkaTaiou: true,
+      },
+      copayInput: {
+        ...defaultCopayInput,
+        insuranceType: "medical",
+        kohiType: "seishin",
+      },
+      seishinCopayTracker: {
+        ...defaultSeishinCopayTracker,
+        noLimit: true,
+      },
+      // 旧設定値が残っていても、月初日60円を重複計上しない。
+      bukkaTaiouType: "type1",
+    });
+
+    expect(result.totalYen).toBe(21620);
+    expect(result.copayAmount).toBe(2162);
+    expect(result.bukkaRyo).toBe(60);
+    expect(result.breakdown.filter((item) => item.label.includes("物価対応料"))).toEqual([
+      expect.objectContaining({ yen: 60 }),
+    ]);
   });
 });
