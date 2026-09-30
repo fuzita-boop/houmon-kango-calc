@@ -178,4 +178,16 @@ describe("localPersistence", () => {
       kohiIncomeClass: "jyoshotoku",
     }).amount).toBe(2160);
   });
+
+  it("月3回の精神科訪問は月の請求総額38,780円に対して1回だけ端数処理する", () => {
+    const monthlyTotal = 21620 + 8580 + 8580;
+    const copay = calcCopay(monthlyTotal, {
+      ...defaultCopayInput,
+      kohiType: "seishin",
+      kohiIncomeClass: "jyoshotoku",
+    });
+
+    expect(monthlyTotal).toBe(38780);
+    expect(copay.amount).toBe(3880);
+  });
 });

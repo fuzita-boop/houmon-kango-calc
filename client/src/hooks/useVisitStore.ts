@@ -643,15 +643,33 @@ export function useVisitStore() {
   const hasBaseup = globalBaseupConfig.kind !== "none" &&
     monthlyResults.some(r => r.insuranceMode === "medical" || r.insuranceMode === "psychiatric");
   const monthlyBaseupYen = hasBaseup ? calcBaseupFee(globalBaseupConfig) : 0;
-  // ベースアップ評価料の自己負担（医療保険の負担割合を最初の医療保険訪問日から取得）
+
+  // 医療保険・精神科は、同一月・同一ステーションの請求総額に負担割合を掛けてから
+  // 10円未満を四捨五入する。訪問日ごとの自己負担額を合算しない。
+  const medicalMonthlyResults = monthlyResults.filter(
+    r => r.insuranceMode === "medical" || r.insuranceMode === "psychiatric"
+  );
   const firstMedicalResult = monthlyResults.find(r => r.insuranceMode === "medical" || r.insuranceMode === "psychiatric");
-  const medicalCopayRatio = firstMedicalResult
-    ? (firstMedicalResult.copayInput.copayRatio === "1" ? 0.1 : firstMedicalResult.copayInput.copayRatio === "2" ? 0.2 : 0.3)
-    : 0.3;
-  const baseupCopay = roundMedicalCopay(monthlyBaseupYen * medicalCopayRatio);
+  const medicalVisitsTotalYen = medicalMonthlyResults.reduce((sum, r) => sum + r.totalYen, 0);
+  const medicalMonthlyTotalYen = medicalVisitsTotalYen + monthlyBaseupYen;
+  const medicalMonthlyBaseCopay = firstMedicalResult
+    ? calcCopay(medicalMonthlyTotalYen, firstMedicalResult.copayInput).amount
+    : 0;
+  const medicalMonthlyCopay = firstMedicalResult?.insuranceMode === "psychiatric" && firstMedicalResult.copayInput.kohiType === "seishin"
+    ? calcSeishinCopayWithTracker(medicalMonthlyBaseCopay, firstMedicalResult.seishinCopayTracker).actualPayment
+    : medicalMonthlyBaseCopay;
+  // ベースアップ評価料は月の請求総額に含めて丸める。表示用には、評価料を含む場合と
+  // 含まない場合の月次自己負担額の差額を示す。
+  const medicalVisitsCopay = firstMedicalResult
+    ? calcCopay(medicalVisitsTotalYen, firstMedicalResult.copayInput).amount
+    : 0;
+  const baseupCopay = Math.max(0, medicalMonthlyBaseCopay - medicalVisitsCopay);
 
   const totalAmount = monthlyResults.reduce((sum, r) => sum + r.totalYen, 0) + monthlyShoguKaizen.yen + monthlyBaseupYen;
-  const totalCopay = monthlyResults.reduce((sum, r) => sum + r.copayAmount, 0) + shoguKaizenCopay + baseupCopay;
+  const careCopayTotal = monthlyResults
+    .filter(r => r.insuranceMode === "care" || r.insuranceMode === "preventive")
+    .reduce((sum, r) => sum + r.copayAmount, 0);
+  const totalCopay = medicalMonthlyCopay + careCopayTotal + shoguKaizenCopay;
 
   const prevMonth = useCallback(() => {
     if (month === 1) { setYear(y => y - 1); setMonth(12); }

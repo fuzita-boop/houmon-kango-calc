@@ -750,7 +750,7 @@ function MonthlySummaryPanel({ store, onSelectDate }: MonthlySummaryPanelProps) 
             <div className="text-xs text-amber-100 mt-0.5">{monthlyResults.length}回訪問</div>
           </div>
           <div className="text-right">
-            <div className="text-xs text-amber-100">患者自己負担（概算）</div>
+            <div className="text-xs text-amber-100">患者自己負担（月合計・概算）</div>
             <div className="text-lg font-bold">{formatYen(totalCopay)}</div>
           </div>
         </div>
@@ -801,7 +801,7 @@ function MonthlySummaryPanel({ store, onSelectDate }: MonthlySummaryPanelProps) 
                 </div>
                 <div className="text-right shrink-0">
                   <div className="font-bold text-stone-800">{formatYen(r.totalYen)}</div>
-                  <div className="text-xs text-stone-400">負担 {formatYen(r.copayAmount)}</div>
+                  <div className="text-xs text-stone-400">負担（参考）{formatYen(r.copayAmount)}</div>
                 </div>
               </button>
             );
@@ -815,7 +815,7 @@ function MonthlySummaryPanel({ store, onSelectDate }: MonthlySummaryPanelProps) 
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-bold text-amber-900">訪問看護ベースアップ評価料</div>
-                <div className="text-xs text-amber-700 mt-0.5">月に1回定額算定</div>
+                <div className="text-xs text-amber-700 mt-0.5">月に1回定額算定・月合計に含めて端数処理</div>
               </div>
               <div className="text-right shrink-0">
                 <div className="font-bold text-amber-800">{formatYen(monthlyBaseupYen)}</div>
